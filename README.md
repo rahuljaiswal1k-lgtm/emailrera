@@ -38,9 +38,10 @@ The app is a static SPA with no server side, so GitHub Pages hosts it as-is.
 
 - **Workflow**: `.github/workflows/deploy.yml` runs on every push to `main`. It installs
   with `npm ci`, lints, type-checks + builds, and publishes `dist/` to Pages.
-- **One-time setup**: in **Settings → Pages**, set *Source* to **GitHub Actions**. The
-  workflow's `configure-pages` step also tries to enable this automatically on its first
-  successful run.
+- **One-time setup (required once)**: in **Settings → Pages**, set *Source* to
+  **GitHub Actions**, then re-run the workflow from the Actions tab. The workflow cannot
+  do this for itself — creating the Pages site needs repo-admin scope, which the
+  built-in `GITHUB_TOKEN` deliberately does not have.
 - **Base path**: because this is a *project* site the app is served from `/emailrera/`,
   not `/`. `vite.config.ts` sets `base` accordingly, and the workflow passes
   `BASE_PATH=/<repo-name>/` so renaming the repo does not break asset URLs.

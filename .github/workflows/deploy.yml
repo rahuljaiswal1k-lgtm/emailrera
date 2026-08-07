@@ -43,11 +43,12 @@ jobs:
           # Project site lives at https://<owner>.github.io/<repo>/
           BASE_PATH: /${{ github.event.repository.name }}/
 
+      # Requires Pages to already be enabled with Source = "GitHub Actions"
+      # (Settings → Pages). The workflow's GITHUB_TOKEN cannot turn Pages on
+      # itself — creating the Pages site needs repo-admin scope, which it
+      # deliberately does not have.
       - name: Configure Pages
         uses: actions/configure-pages@v5
-        with:
-          # Turns Pages on for this repo automatically the first time this runs.
-          enablement: true
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
