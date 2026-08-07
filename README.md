@@ -140,6 +140,25 @@ shows a red **Not saved** indicator in the top bar instead of failing silently.
 For a shared/multi-person setup, the next step would be swapping `src/lib/storage.ts` for
 real API calls against a small backend.
 
+## In-canvas editing
+
+The preview is not a picture — it is the editing surface, the way Mailchimp and
+Brevo work. `lib/canvasEditor.ts` injects a small CSS + script layer into the
+preview iframe that gives every section:
+
+- a hover outline and a name chip;
+- **click to select**, which drives the sidebar and the Properties panel;
+- a floating toolbar: **drag · move up · move down · duplicate · delete**;
+- **pointer drag-and-drop reordering** with a live drop indicator.
+
+The iframe talks to the editor over `postMessage`; `PreviewFrame` translates
+those messages into store actions, so canvas edits and sidebar edits are the
+same operations. A desktop/mobile width toggle sits in the preview header.
+
+**This layer is preview-only.** `generateHTML(..., { interactive: true })` adds
+it; the export never passes that flag, so the delivered `index.html` contains no
+`data-nl-section`, no `<script>` and no editor CSS — verified on every build.
+
 ## Theme engine
 
 `lib/blockStyle.ts` resolves a block's theme into a **complete token set** —

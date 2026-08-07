@@ -119,6 +119,9 @@ export interface ThemeTokens {
   accentText: string;
   iconBg: string;
   iconFg: string;
+  /** Soft tile behind section icons, as used in the reference newsletter. */
+  iconTileBg: string;
+  iconTileBorder: string;
   badgeBg: string;
   badgeText: string;
   boxBg: string;
@@ -141,7 +144,7 @@ export const THEME_TOKENS: Record<BlockTheme, ThemeTokens> = {
     heading: '#111111', text: '#333333', muted: '#6B7280',
     border: '#E3E6EC', divider: '#EDEFF3',
     accent: '#FFDA4B', accentText: '#1D1F1F',
-    iconBg: '#1D1F1F', iconFg: '#FFDA4B',
+    iconBg: '#1D1F1F', iconFg: '#FFDA4B', iconTileBg: '#FFF6D9', iconTileBorder: '#F3E3AE',
     badgeBg: '#1D1F1F', badgeText: '#FFFFFF',
     boxBg: '#FFFBEC', boxBorder: '#F2E0A8', boxText: '#4A421F',
     buttonBg: '#FFDA4B', buttonText: '#1D1F1F', buttonBorder: '#FFDA4B', cardBg: '#FFFFFF',
@@ -151,7 +154,7 @@ export const THEME_TOKENS: Record<BlockTheme, ThemeTokens> = {
     heading: '#111111', text: '#333333', muted: '#5F6672',
     border: '#DDE1E8', divider: '#E3E6EC',
     accent: '#1D1F1F', accentText: '#FFFFFF',
-    iconBg: '#1D1F1F', iconFg: '#FFDA4B',
+    iconBg: '#1D1F1F', iconFg: '#FFDA4B', iconTileBg: '#FFFFFF', iconTileBorder: '#DDE1E8',
     badgeBg: '#1D1F1F', badgeText: '#FFFFFF',
     boxBg: '#FFFFFF', boxBorder: '#DDE1E8', boxText: '#333333',
     buttonBg: '#1D1F1F', buttonText: '#FFFFFF', buttonBorder: '#1D1F1F', cardBg: '#FFFFFF',
@@ -161,7 +164,7 @@ export const THEME_TOKENS: Record<BlockTheme, ThemeTokens> = {
     heading: '#FFFFFF', text: '#E6E8E8', muted: '#A8ADAD',
     border: '#3A3D3D', divider: '#333636',
     accent: '#FFDA4B', accentText: '#1D1F1F',
-    iconBg: '#FFDA4B', iconFg: '#1D1F1F',
+    iconBg: '#FFDA4B', iconFg: '#1D1F1F', iconTileBg: '#2A2C2C', iconTileBorder: '#3A3D3D',
     badgeBg: '#FFDA4B', badgeText: '#1D1F1F',
     boxBg: '#2A2C2C', boxBorder: '#3A3D3D', boxText: '#E6E8E8',
     buttonBg: '#FFDA4B', buttonText: '#1D1F1F', buttonBorder: '#FFDA4B', cardBg: '#1D1F1F',
@@ -171,7 +174,7 @@ export const THEME_TOKENS: Record<BlockTheme, ThemeTokens> = {
     heading: '#1D1F1F', text: '#3A3520', muted: '#6B6234',
     border: '#E9C43C', divider: '#EDCE55',
     accent: '#1D1F1F', accentText: '#FFDA4B',
-    iconBg: '#1D1F1F', iconFg: '#FFDA4B',
+    iconBg: '#1D1F1F', iconFg: '#FFDA4B', iconTileBg: '#FFF2C2', iconTileBorder: '#E9C43C',
     badgeBg: '#1D1F1F', badgeText: '#FFFFFF',
     boxBg: '#FFF2C2', boxBorder: '#E9C43C', boxText: '#3A3520',
     buttonBg: '#1D1F1F', buttonText: '#FFFFFF', buttonBorder: '#1D1F1F', cardBg: '#FFF2C2',
@@ -247,6 +250,8 @@ export function computeTokens(style: BlockStyle): ThemeTokens & { bgCss: string;
     t.boxText = t.text;
     t.iconBg = onDark ? '#FFDA4B' : '#1D1F1F';
     t.iconFg = onDark ? '#1D1F1F' : '#FFDA4B';
+    t.iconTileBg = t.surface;
+    t.iconTileBorder = t.border;
     t.badgeBg = onDark ? '#FFDA4B' : '#1D1F1F';
     t.badgeText = onDark ? '#1D1F1F' : '#FFFFFF';
     t.cardBg = style.backgroundColor;

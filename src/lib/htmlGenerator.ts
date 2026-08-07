@@ -44,6 +44,19 @@ import { RADIUS, SPACE, TYPE, ICON_SIZE, CARD_PADDING } from './designTokens';
 import { renderButtonGroup } from './blockButtons';
 import { renderBoxes } from './blockBoxes';
 import { SOCIAL_SVG_FALLBACK, getBinding, type BrandSlotKey } from './brandAssets';
+import { canvasStyles, canvasScript, CANVAS_ATTR } from './canvasEditor';
+import { SECTION_LABELS } from '../data/sectionDefaults';
+
+/**
+ * Preview-only options. `interactive` adds the in-canvas editing layer
+ * (selection outlines, per-section toolbar, drag-to-reorder). It is never set
+ * when generating the export, so the delivered HTML stays clean and
+ * email-safe.
+ */
+export interface GenerateOptions {
+  interactive?: boolean;
+  selectedId?: string | null;
+}
 
 const FONT = EMAIL_FONT;
 
@@ -79,18 +92,24 @@ function wrapperPaintsCard(style: { variant: string; padding: number }): boolean
   return style.padding > 0 && style.variant !== 'plain' && style.variant !== 'minimal';
 }
 
-function iconBadge(iconKey: string, t: ThemeTokens = BASE_T, size: number = ICON_SIZE.lg): string {
+/**
+ * Section icon. Rendered as a soft rounded-square tile (matching the reference
+ * newsletters) rather than a hard black circle — lighter, and it sits better
+ * against white cards. Colours come from the theme so it inverts on dark.
+ */
+function iconBadge(iconKey: string, t: ThemeTokens = BASE_T, size: number = ICON_SIZE.md): string {
   const icon = getIcon(iconKey);
-  const inner = Math.round(size * 0.52);
-  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${t.iconBg};text-align:center;line-height:${size}px;"><svg width="${inner}" height="${inner}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;">${icon.svg}</svg></div>`;
+  const inner = Math.round(size * 0.55);
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="background:${t.iconTileBg};border:1px solid ${t.iconTileBorder};border-radius:${RADIUS.sm}px;"><tr><td width="${size}" height="${size}" align="center" valign="middle" style="width:${size}px;height:${size}px;text-align:center;"><svg width="${inner}" height="${inner}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;">${icon.svg}</svg></td></tr></table>`;
 }
 
 function sectionHeading(iconKey: string, heading: string, t: ThemeTokens = BASE_T): string {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td valign="middle" width="${
-    ICON_SIZE.lg + 12
-  }">${iconBadge(iconKey, t)}</td><td valign="middle"><div style="font-family:${FONT};font-size:${TYPE.h4.size}px;line-height:${
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="left" style="margin-bottom:${SPACE.sm}px;"><tr><td valign="middle" style="padding-right:12px;">${iconBadge(
+    iconKey,
+    t
+  )}</td><td valign="middle" align="left" style="text-align:left;"><div style="font-family:${FONT};font-size:${TYPE.h4.size}px;line-height:${
     TYPE.h4.lh
-  }px;font-weight:700;letter-spacing:1px;color:${t.heading};">${esc(heading.toUpperCase())}</div></td></tr></table>`;
+  }px;font-weight:700;letter-spacing:.9px;color:${t.heading};text-align:left;">${esc(heading.toUpperCase())}</div></td></tr></table>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -234,14 +253,14 @@ function renderHero(s: HeroSection, settings: GlobalSettings, resolve: ImageReso
 
 function renderContentBody(s: ContentSection, t: ThemeTokens): string {
   const para = (txt: string) =>
-    `<p style="margin:${SPACE.md}px 0 0;font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:${TYPE.bodyLg.lh}px;color:${t.text};text-align:justify;">${nl2br(txt)}</p>`;
+    `<p style="margin:${SPACE.md}px 0 0;font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:${TYPE.bodyLg.lh}px;color:${t.text};text-align:left;">${nl2br(txt)}</p>`;
 
   if (s.bodyType === 'paragraph') return para(s.paragraph);
 
   const rows = s.items
     .map((item, i) => {
       const marker = s.bodyType === 'numbered' ? `${i + 1}.` : '&bull;';
-      return `<tr><td valign="top" width="22" style="font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:28px;color:${t.heading};">${marker}</td><td style="font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:28px;color:${t.text};text-align:justify;padding-bottom:${SPACE.xxs}px;">${nl2br(
+      return `<tr><td valign="top" width="22" style="font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:28px;color:${t.heading};">${marker}</td><td style="font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:28px;color:${t.text};text-align:left;padding-bottom:${SPACE.xs}px;">${nl2br(
         item
       )}</td></tr>`;
     })
@@ -253,7 +272,7 @@ function renderContentBody(s: ContentSection, t: ThemeTokens): string {
 
 function renderContent(s: ContentSection, t: ThemeTokens, ownCard: boolean): string {
   const sub = s.subheading
-    ? `<p style="margin:${SPACE.sm}px 0 0;font-family:${FONT};font-size:${TYPE.small.size}px;line-height:${TYPE.small.lh}px;color:${t.muted};">${nl2br(
+    ? `<p style="margin:${SPACE.sm}px 0 0;font-family:${FONT};font-size:${TYPE.small.size}px;line-height:${TYPE.small.lh}px;color:${t.muted};text-align:left;">${nl2br(
         s.subheading
       )}</p>`
     : '';
@@ -268,7 +287,7 @@ function renderInfoCard(s: InfoCardSection, t: ThemeTokens, ownCard: boolean): s
     <div style="background:${s.backgroundColor || t.surfaceAlt};border-radius:${RADIUS.md}px;padding:${SPACE.lg - 4}px;border-left:4px solid ${
     s.borderColor || t.accent
   };text-align:left;">
-      <p style="margin:0;font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:${TYPE.bodyLg.lh}px;color:${t.text};text-align:justify;">${nl2br(
+      <p style="margin:0;font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:${TYPE.bodyLg.lh}px;color:${t.text};text-align:left;">${nl2br(
     s.text
   )}</p>
     </div>
@@ -281,7 +300,7 @@ function mythFactRow(text: string, isMyth: boolean): string {
   const color = isMyth ? '#7A2323' : '#1F5C31';
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;"><tr>
     <td valign="top" width="30" style="padding-top:1px;"><div style="width:22px;height:22px;border-radius:50%;background:${bg};text-align:center;line-height:22px;"><span style="font-family:${FONT};font-size:13px;font-weight:bold;color:#ffffff;">${symbol}</span></div></td>
-    <td valign="top" style="font-family:${FONT};font-size:14.5px;line-height:22px;color:${color};text-align:justify;">${nl2br(text)}</td>
+    <td valign="top" style="font-family:${FONT};font-size:14.5px;line-height:22px;color:${color};text-align:left;">${nl2br(text)}</td>
   </tr></table>`;
 }
 
@@ -289,7 +308,9 @@ function renderMythFact(s: MythFactSection, t: ThemeTokens, ownCard: boolean): s
   const mythRows = s.myths.map((m) => mythFactRow(m, true)).join('');
   const factRows = s.facts.map((f) => mythFactRow(f, false)).join('');
   const intro = (txt: string, top: number) =>
-    `<p style="margin:${top}px 0 0;font-family:${FONT};font-size:${TYPE.small.size}px;line-height:${TYPE.small.lh}px;color:${t.muted};">${esc(txt)}</p>`;
+    `<p style="margin:${top}px 0 0;font-family:${FONT};font-size:${TYPE.small.size}px;line-height:${TYPE.small.lh}px;color:${t.muted};text-align:left;">${esc(
+      txt
+    )}</p>`;
   return card(`
     ${sectionHeading('warning', s.heading, t)}
     ${intro(s.mythsIntro, SPACE.md)}
@@ -1161,7 +1182,13 @@ function socialBadge(platform: string, url: string, settings: GlobalSettings, re
 // Full document assembly
 // ---------------------------------------------------------------------------
 
-export function generateHTML(newsletter: Newsletter, settings: GlobalSettings, resolve: ImageResolver): string {
+export function generateHTML(
+  newsletter: Newsletter,
+  settings: GlobalSettings,
+  resolve: ImageResolver,
+  opts: GenerateOptions = {}
+): string {
+  const interactive = opts.interactive === true;
   // Sections normally sit inside a padded content column. Blocks marked
   // fullBleed escape it and get their own edge-to-edge row, so a hero band or
   // image banner can run the full 640px width with square corners.
@@ -1175,8 +1202,13 @@ export function generateHTML(newsletter: Newsletter, settings: GlobalSettings, r
   };
 
   newsletter.sections.forEach((s) => {
-    const html = renderSection(s, settings, resolve);
-    if (!html) return;
+    const raw = renderSection(s, settings, resolve);
+    if (!raw) return;
+    // In preview mode each section gets an addressable wrapper so the canvas
+    // can outline it, select it and drag it. Absent from the export.
+    const html = interactive
+      ? `<div ${CANVAS_ATTR}="${s.id}" data-nl-label="${esc(SECTION_LABELS[s.type] ?? s.type)}">${raw}</div>`
+      : raw;
     if (styleForType(s.type, s.style).fullBleed) {
       flushPadded();
       rows.push(`<tr><td style="padding:0;font-size:0;line-height:0;">${html}</td></tr>`);
@@ -1228,7 +1260,7 @@ export function generateHTML(newsletter: Newsletter, settings: GlobalSettings, r
         </td></tr>`;
 
   return `<!DOCTYPE html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<html lang="en"${interactive && opts.selectedId ? ` data-nl-selected="${esc(opts.selectedId)}"` : ''} xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1251,6 +1283,7 @@ export function generateHTML(newsletter: Newsletter, settings: GlobalSettings, r
       .stat-cell{ width:50% !important; display:inline-block !important; box-sizing:border-box; }
     }
   </style>
+  ${interactive ? canvasStyles() : ''}
 </head>
 <body style="margin:0;padding:0;background:#EDEFF3;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#EDEFF3;">
@@ -1268,6 +1301,7 @@ export function generateHTML(newsletter: Newsletter, settings: GlobalSettings, r
       </table>
     </td></tr>
   </table>
+  ${interactive ? canvasScript() : ''}
 </body>
 </html>`;
 }
