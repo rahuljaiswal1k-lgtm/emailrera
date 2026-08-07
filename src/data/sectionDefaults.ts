@@ -25,7 +25,7 @@ import type {
   CtaBannerSection,
   ImageBannerSection,
 } from '../types/newsletter';
-import { DEFAULT_BLOCK_STYLE, CARD_BLOCK_STYLE } from '../lib/blockStyle';
+import { DEFAULT_BLOCK_STYLE, CARD_BLOCK_STYLE, FULL_BLEED_BLOCK_STYLE } from '../lib/blockStyle';
 import { createButton } from '../lib/blockButtons';
 import { createBox } from '../lib/blockBoxes';
 
@@ -124,11 +124,14 @@ export function createSection(type: SectionType): Section {
         id,
         type,
         visible: true,
+        style: { ...FULL_BLEED_BLOCK_STYLE },
         title: 'Your Newsletter Headline Goes Here',
         subtitle: '',
         showSubtitle: false,
         backgroundColor: '#FFDA4B',
         textAlign: 'center',
+        badge: '',
+        noticeText: '',
       } satisfies HeroSection;
 
     case 'content':

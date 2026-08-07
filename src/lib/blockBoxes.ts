@@ -25,7 +25,10 @@ export type BoxKind =
   | 'quote'
   | 'feature'
   | 'checklist'
-  | 'mini';
+  | 'mini'
+  // Layout helpers — no card chrome, just structure inside the section.
+  | 'spacer'
+  | 'line';
 
 export interface ContainerBox {
   id: string;
@@ -69,16 +72,19 @@ export const BOX_PRESETS: Record<BoxKind, BoxPreset> = {
   feature: { label: 'Feature Card', bg: '#FFFFFF', border: '#D9DDE3', text: '#1A1A1A', accent: '#1D1F1F', leftRule: false, radius: 16, padding: 22 },
   checklist: { label: 'Checklist Card', bg: '#FFFFFF', border: '#D9DDE3', text: '#1A1A1A', accent: '#2E9E4E', leftRule: false, radius: 16, padding: 22 },
   mini: { label: 'Mini Card', bg: '#F7F8FA', border: '#E3E6EC', text: '#333333', accent: '#1D1F1F', leftRule: false, radius: 10, padding: 14 },
+  spacer: { label: 'Spacer', bg: 'transparent', border: 'transparent', text: '#000000', accent: '#000000', leftRule: false, radius: 0, padding: 18 },
+  line: { label: 'Divider Line', bg: 'transparent', border: '#E3E6EC', text: '#8A9099', accent: '#E3E6EC', leftRule: false, radius: 0, padding: 14 },
 };
 
 export const BOX_KINDS = Object.keys(BOX_PRESETS) as BoxKind[];
 
 export function createBox(kind: BoxKind = 'info'): ContainerBox {
+  const isLayoutHelper = kind === 'spacer' || kind === 'line';
   return {
     id: nanoid(),
     kind,
-    title: BOX_PRESETS[kind].label,
-    text: 'Add the detail you want to call out here.',
+    title: isLayoutHelper ? '' : BOX_PRESETS[kind].label,
+    text: isLayoutHelper ? '' : 'Add the detail you want to call out here.',
     icon: '',
     items: kind === 'checklist' || kind === 'feature' ? ['First item', 'Second item'] : [],
     backgroundColor: '',
@@ -103,6 +109,29 @@ function checkRow(text: string, accent: string, color: string): string {
 
 export function renderBox(box: ContainerBox): string {
   const preset = BOX_PRESETS[box.kind] ?? BOX_PRESETS.info;
+
+  // Layout helpers render no card at all.
+  if (box.kind === 'spacer') {
+    const h = box.padding || preset.padding;
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td height="${h}" style="font-size:0;line-height:0;">&nbsp;</td></tr></table>`;
+  }
+
+  if (box.kind === 'line') {
+    const color = box.borderColor || preset.border;
+    const gap = box.padding || preset.padding;
+    // With a title the rule splits either side of a centred label.
+    if (box.title) {
+      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:${gap}px 0;"><tr>
+        <td style="border-top:1px solid ${color};font-size:0;line-height:0;">&nbsp;</td>
+        <td width="1%" style="padding:0 12px;white-space:nowrap;font-family:${EMAIL_FONT};font-size:11px;font-weight:700;letter-spacing:1.2px;color:${
+        box.textColor || preset.text
+      };">${esc(box.title.toUpperCase())}</td>
+        <td style="border-top:1px solid ${color};font-size:0;line-height:0;">&nbsp;</td>
+      </tr></table>`;
+    }
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:${gap}px 0;"><tr><td style="border-top:1px solid ${color};font-size:0;line-height:0;">&nbsp;</td></tr></table>`;
+  }
+
   const bg = box.backgroundColor || preset.bg;
   const border = box.borderColor || preset.border;
   const color = box.textColor || preset.text;

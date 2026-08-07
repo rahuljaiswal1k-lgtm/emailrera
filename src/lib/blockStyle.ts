@@ -34,6 +34,12 @@ export interface BlockStyle {
   /** Percentage of the 640px column. 100 = full width. */
   maxWidth: number;
   divider: DividerPosition;
+  /**
+   * Escape the padded content column and run edge to edge across the whole
+   * 640px email body — the full-bleed yellow hero band, image banners, etc.
+   * generateHTML() emits these in their own unpadded table row.
+   */
+  fullBleed: boolean;
 }
 
 /**
@@ -55,6 +61,7 @@ export const DEFAULT_BLOCK_STYLE: BlockStyle = {
   align: 'left',
   maxWidth: 100,
   divider: 'none',
+  fullBleed: false,
 };
 
 /** Sensible starting point for the newer, card-style blocks. */
@@ -64,6 +71,30 @@ export const CARD_BLOCK_STYLE: BlockStyle = {
   borderRadius: 22,
   padding: 28,
 };
+
+/** Edge-to-edge band with square corners — the hero / banner treatment. */
+export const FULL_BLEED_BLOCK_STYLE: BlockStyle = {
+  ...DEFAULT_BLOCK_STYLE,
+  fullBleed: true,
+  borderRadius: 0,
+  spacingBottom: 0,
+};
+
+/**
+ * Per-type fallback used when a section carries no `style` of its own —
+ * i.e. newsletters saved before the design system existed. Anything not
+ * listed keeps the neutral DEFAULT_BLOCK_STYLE, so those sections render
+ * exactly as they always did.
+ */
+export const DEFAULT_STYLE_BY_TYPE: Record<string, BlockStyle> = {
+  hero: FULL_BLEED_BLOCK_STYLE,
+};
+
+/** Resolve a section's style, falling back to its type default. */
+export function styleForType(type: string, style?: Partial<BlockStyle>): BlockStyle {
+  if (style) return resolveStyle(style);
+  return DEFAULT_STYLE_BY_TYPE[type] ?? DEFAULT_BLOCK_STYLE;
+}
 
 export interface ThemeTokens {
   bg: string;

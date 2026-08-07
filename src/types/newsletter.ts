@@ -64,6 +64,10 @@ export interface HeroSection extends BaseSection {
   showSubtitle: boolean;
   backgroundColor: string;
   textAlign: 'left' | 'center' | 'right';
+  /** Small dark pill above the headline, e.g. "IMPORTANT UPDATE". Optional. */
+  badge?: string;
+  /** Dark strip below the headline, e.g. "KEEP READING TO …". Optional. */
+  noticeText?: string;
 }
 
 /** Section Type 2 — Standard Content Section */

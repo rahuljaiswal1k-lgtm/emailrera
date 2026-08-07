@@ -1,8 +1,8 @@
 import type { Section } from '../../../../types/newsletter';
 import type { BlockStyle, BlockTheme, BlockVariant, ShadowSize, BlockAlign, DividerPosition } from '../../../../lib/blockStyle';
-import { resolveStyle } from '../../../../lib/blockStyle';
+import { styleForType } from '../../../../lib/blockStyle';
 import { useNewsletterStore } from '../../../../store/useNewsletterStore';
-import { FieldGroup, SelectField, ColorField, SliderField } from '../../../shared/FormFields';
+import { FieldGroup, SelectField, ColorField, SliderField, ToggleField } from '../../../shared/FormFields';
 
 const THEMES: { value: BlockTheme; label: string }[] = [
   { value: 'light', label: 'Light' },
@@ -46,12 +46,25 @@ const DIVIDERS: { value: DividerPosition; label: string }[] = [
  */
 export function StyleFields({ section }: { section: Section }) {
   const update = useNewsletterStore((s) => s.updateSection);
-  const style = resolveStyle(section.style);
+  // styleForType (not resolveStyle) so the panel shows the same per-type
+  // defaults the renderer uses for sections that carry no style of their own.
+  const style = styleForType(section.type, section.style);
   const set = (partial: Partial<BlockStyle>) =>
     update(section.id, { style: { ...style, ...partial } } as Partial<Section>);
 
   return (
     <>
+      <FieldGroup
+        label="Full Width"
+        hint="Runs the block edge to edge across the whole email, ignoring the page's side padding"
+      >
+        <ToggleField
+          checked={style.fullBleed}
+          onChange={(fullBleed) => set({ fullBleed, borderRadius: fullBleed ? 0 : style.borderRadius })}
+          label="Edge to edge (no side padding)"
+        />
+      </FieldGroup>
+
       <FieldGroup label="Theme" hint="Sets the base background, text and border colours">
         <SelectField value={style.theme} onChange={(theme) => set({ theme })} options={THEMES} />
       </FieldGroup>

@@ -27,7 +27,7 @@ import type {
 } from '../types/newsletter';
 import { getIcon } from '../data/icons';
 import { esc, nl2br, isDark, EMAIL_FONT } from './htmlEscape';
-import { resolveStyle, wrapBlock, spacerRow, HEADING_SIZES, computeTokens } from './blockStyle';
+import { resolveStyle, styleForType, wrapBlock, spacerRow, HEADING_SIZES, computeTokens } from './blockStyle';
 import { renderButtonGroup } from './blockButtons';
 import { renderBoxes } from './blockBoxes';
 import { SOCIAL_SVG_FALLBACK, getBinding, type BrandSlotKey } from './brandAssets';
@@ -64,13 +64,44 @@ function sectionHeading(iconKey: string, heading: string): string {
 // ---------------------------------------------------------------------------
 
 function renderHero(s: HeroSection): string {
+  const style = styleForType('hero', s.style);
   const textColor = isDark(s.backgroundColor) ? '#FFFFFF' : '#111111';
-  const subtitle = s.showSubtitle && s.subtitle
-    ? `<p style="margin:10px 0 0;font-family:${FONT};font-size:15px;line-height:22px;color:${textColor};opacity:0.85;">${nl2br(s.subtitle)}</p>`
+  const chipBg = isDark(s.backgroundColor) ? '#FFDA4B' : '#1D1F1F';
+  const chipFg = isDark(s.backgroundColor) ? '#1D1F1F' : '#FFFFFF';
+
+  // Edge-to-edge heroes need square corners and roomier padding; inset heroes
+  // keep the original rounded card so existing newsletters are unchanged.
+  const radiusCss = style.fullBleed ? '' : 'border-radius:18px;';
+  const pad = style.fullBleed ? '34px 32px 30px' : '32px 32px';
+
+  const badge = s.badge
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${
+        s.textAlign === 'center' ? 'center' : 'left'
+      }" style="margin-bottom:14px;"><tr><td style="background:${chipBg};border-radius:100px;padding:6px 16px;font-family:${FONT};font-size:11px;font-weight:700;letter-spacing:1.2px;color:${chipFg};">${esc(
+        s.badge.toUpperCase()
+      )}</td></tr></table>`
     : '';
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${s.backgroundColor};border-radius:18px;"><tr><td style="padding:32px 32px;text-align:${s.textAlign};">
+
+  const subtitle =
+    s.showSubtitle && s.subtitle
+      ? `<p style="margin:10px 0 0;font-family:${FONT};font-size:15px;line-height:22px;color:${textColor};opacity:0.85;">${nl2br(
+          s.subtitle
+        )}</p>`
+      : '';
+
+  const notice = s.noticeText
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${
+        s.textAlign === 'center' ? 'center' : 'left'
+      }" style="margin-top:18px;"><tr><td style="background:${chipBg};border-radius:8px;padding:10px 18px;font-family:${FONT};font-size:11.5px;font-weight:700;letter-spacing:.8px;color:${chipFg};text-align:center;">${esc(
+        s.noticeText.toUpperCase()
+      )}</td></tr></table>`
+    : '';
+
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${s.backgroundColor};${radiusCss}"><tr><td style="padding:${pad};text-align:${s.textAlign};">
+    ${badge}
     <h1 class="title" style="margin:0;font-family:${FONT};font-size:28px;line-height:36px;font-weight:bold;color:${textColor};">${esc(s.title)}</h1>
     ${subtitle}
+    ${notice}
   </td></tr></table>`;
 }
 
@@ -789,7 +820,7 @@ function renderSection(section: Section, settings: GlobalSettings, resolve: Imag
   const inner = renderSectionInner(section, settings, resolve);
   const extras = renderBoxes(section.boxes) + renderButtonGroup(section.buttons);
   if (!inner && !extras) return '';
-  return wrapBlock(inner + extras, resolveStyle(section.style));
+  return wrapBlock(inner + extras, styleForType(section.type, section.style));
 }
 
 // ---------------------------------------------------------------------------
@@ -828,12 +859,31 @@ function socialBadge(platform: string, url: string, settings: GlobalSettings, re
 // ---------------------------------------------------------------------------
 
 export function generateHTML(newsletter: Newsletter, settings: GlobalSettings, resolve: ImageResolver): string {
-  // Inter-block spacing now comes from each block's own BlockStyle
-  // (spacingTop / spacingBottom), applied by wrapBlock().
-  const sectionsHtml = newsletter.sections
-    .map((s) => renderSection(s, settings, resolve))
-    .filter(Boolean)
-    .join('');
+  // Sections normally sit inside a padded content column. Blocks marked
+  // fullBleed escape it and get their own edge-to-edge row, so a hero band or
+  // image banner can run the full 640px width with square corners.
+  const rows: string[] = [];
+  let padded: string[] = [];
+  const flushPadded = () => {
+    if (padded.length === 0) return;
+    const topPad = rows.length === 0 ? 28 : 22;
+    rows.push(`<tr><td class="px" style="padding:${topPad}px 28px 8px;">${padded.join('')}</td></tr>`);
+    padded = [];
+  };
+
+  newsletter.sections.forEach((s) => {
+    const html = renderSection(s, settings, resolve);
+    if (!html) return;
+    if (styleForType(s.type, s.style).fullBleed) {
+      flushPadded();
+      rows.push(`<tr><td style="padding:0;font-size:0;line-height:0;">${html}</td></tr>`);
+    } else {
+      padded.push(html);
+    }
+  });
+  flushPadded();
+
+  const sectionsHtml = rows.join('');
 
   // Asset Manager logo slot wins; the legacy Global Settings logo still works.
   const headerLogoSrc = brandSrc(settings, 'logo', resolve) ?? resolve(settings.logoImageId);
@@ -888,7 +938,7 @@ export function generateHTML(newsletter: Newsletter, settings: GlobalSettings, r
           <a href="${esc(settings.websiteUrl)}" target="_blank" style="text-decoration:none;border:0;">${logo}</a>
         </td></tr></table></td></tr>
 
-        ${sectionsHtml ? `<tr><td class="px" style="padding:28px 28px 8px;">${sectionsHtml}</td></tr>` : ''}
+        ${sectionsHtml}
 
         <tr><td align="center" style="padding:22px 28px 30px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#FFDA4B;border-radius:12px;">

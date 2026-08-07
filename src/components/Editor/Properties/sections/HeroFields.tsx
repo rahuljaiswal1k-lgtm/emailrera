@@ -8,8 +8,16 @@ export function HeroFields({ section }: { section: HeroSection }) {
 
   return (
     <>
+      <FieldGroup label="Badge" hint='Small dark pill above the headline, e.g. "IMPORTANT UPDATE"'>
+        <TextField value={section.badge ?? ''} onChange={(badge) => set({ badge })} placeholder="Optional" />
+      </FieldGroup>
+
       <FieldGroup label="Headline" hint="The big title inside the email. The name at the top of this screen is only how the draft is listed on your dashboard.">
         <TextField value={section.title} onChange={(title) => set({ title })} placeholder="Your headline" />
+      </FieldGroup>
+
+      <FieldGroup label="Notice Strip" hint='Dark strip under the headline, e.g. "KEEP READING TO KNOW IF YOUR PROJECT MAY BENEFIT"'>
+        <TextField value={section.noticeText ?? ''} onChange={(noticeText) => set({ noticeText })} placeholder="Optional" />
       </FieldGroup>
 
       <FieldGroup label="Show Subtitle">
