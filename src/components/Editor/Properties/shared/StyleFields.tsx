@@ -1,8 +1,10 @@
 import type { Section } from '../../../../types/newsletter';
 import type { BlockStyle, BlockTheme, BlockVariant, ShadowSize, BlockAlign, DividerPosition } from '../../../../lib/blockStyle';
 import { styleForType } from '../../../../lib/blockStyle';
+import { DESIGN_PRESETS } from '../../../../lib/designTokens';
 import { useNewsletterStore } from '../../../../store/useNewsletterStore';
 import { FieldGroup, SelectField, ColorField, SliderField, ToggleField } from '../../../shared/FormFields';
+import { PanelGroup } from './PanelGroup';
 
 const THEMES: { value: BlockTheme; label: string }[] = [
   { value: 'light', label: 'Light' },
@@ -41,86 +43,152 @@ const DIVIDERS: { value: DividerPosition; label: string }[] = [
 ];
 
 /**
- * The Design tab. Edits the shared BlockStyle, so it works for every block
- * type without any per-type code.
+ * The Design tab. Edits the shared BlockStyle, so it works for every block type
+ * without any per-type code. Controls are grouped into collapsible sections
+ * because the full set is now well past one screen.
  */
 export function StyleFields({ section }: { section: Section }) {
   const update = useNewsletterStore((s) => s.updateSection);
+  const current = useNewsletterStore((s) => s.current);
+  const setSections = useNewsletterStore((s) => s.setSections);
+
   // styleForType (not resolveStyle) so the panel shows the same per-type
   // defaults the renderer uses for sections that carry no style of their own.
   const style = styleForType(section.type, section.style);
   const set = (partial: Partial<BlockStyle>) =>
     update(section.id, { style: { ...style, ...partial } } as Partial<Section>);
 
+  /** Apply a preset to this block, or to every block at once. */
+  const applyPreset = (key: string, toAll: boolean) => {
+    const preset = DESIGN_PRESETS.find((p) => p.key === key);
+    if (!preset) return;
+    if (!toAll) {
+      set(preset.style);
+      return;
+    }
+    if (!current) return;
+    setSections(
+      current.sections.map((sec) => {
+        // Full-bleed banners keep their own geometry; a preset would boxe them in.
+        const secStyle = styleForType(sec.type, sec.style);
+        if (secStyle.fullBleed) return sec;
+        return { ...sec, style: { ...secStyle, ...preset.style } } as Section;
+      })
+    );
+  };
+
   return (
     <>
-      <FieldGroup
-        label="Full Width"
-        hint="Runs the block edge to edge across the whole email, ignoring the page's side padding"
-      >
-        <ToggleField
-          checked={style.fullBleed}
-          onChange={(fullBleed) => set({ fullBleed, borderRadius: fullBleed ? 0 : style.borderRadius })}
-          label="Edge to edge (no side padding)"
-        />
-      </FieldGroup>
+      <PanelGroup title="Presets" defaultOpen>
+        <p className="text-[11px] text-gray-400 mb-2 leading-relaxed">
+          Sets spacing, radius, shadow, card treatment and theme in one click. Everything stays
+          editable afterwards.
+        </p>
+        <div className="grid grid-cols-2 gap-1.5">
+          {DESIGN_PRESETS.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => applyPreset(p.key, false)}
+              title={p.description}
+              className="text-left px-2.5 py-2 rounded-lg border border-gray-200 hover:border-gray-400 hover:bg-gray-50"
+            >
+              <div className="text-[12px] font-semibold text-gray-800">{p.label}</div>
+              <div className="text-[10px] text-gray-400 line-clamp-2 leading-snug">{p.description}</div>
+            </button>
+          ))}
+        </div>
+        <details className="mt-2">
+          <summary className="text-[11px] font-semibold text-gray-500 cursor-pointer select-none">
+            Apply a preset to every section
+          </summary>
+          <div className="grid grid-cols-2 gap-1.5 pt-2">
+            {DESIGN_PRESETS.map((p) => (
+              <button
+                key={p.key}
+                onClick={() => applyPreset(p.key, true)}
+                className="text-[11px] font-semibold px-2 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-gray-400 mt-1.5">
+            Full-width banners keep their own geometry and are skipped.
+          </p>
+        </details>
+      </PanelGroup>
 
-      <FieldGroup label="Theme" hint="Sets the base background, text and border colours">
-        <SelectField value={style.theme} onChange={(theme) => set({ theme })} options={THEMES} />
-      </FieldGroup>
-
-      <FieldGroup label="Card Style">
-        <SelectField value={style.variant} onChange={(variant) => set({ variant })} options={VARIANTS} />
-      </FieldGroup>
-
-      <div className="rounded-xl border border-gray-200 p-3 mb-4">
-        <p className="text-[11px] font-semibold text-gray-500 mb-2.5">Colour overrides</p>
-        <FieldGroup label="Background" hint="Leave blank to use the theme colour">
-          <ColorField value={style.backgroundColor} onChange={(backgroundColor) => set({ backgroundColor })} allowEmpty />
+      <PanelGroup title="Layout" defaultOpen>
+        <FieldGroup
+          label="Full Width"
+          hint="Runs the block edge to edge across the whole email, ignoring the page's side padding"
+        >
+          <ToggleField
+            checked={style.fullBleed}
+            onChange={(fullBleed) => set({ fullBleed, borderRadius: fullBleed ? 0 : style.borderRadius })}
+            label="Edge to edge (no side padding)"
+          />
         </FieldGroup>
-        <FieldGroup label="Text">
-          <ColorField value={style.textColor} onChange={(textColor) => set({ textColor })} allowEmpty />
+        <FieldGroup label="Content Alignment">
+          <SelectField value={style.align} onChange={(align) => set({ align })} options={ALIGNS} />
         </FieldGroup>
-        <FieldGroup label="Border">
-          <ColorField value={style.borderColor} onChange={(borderColor) => set({ borderColor })} allowEmpty />
+        <FieldGroup label="Section Width" hint="Narrower than 100% centres the block in the column">
+          <SliderField value={style.maxWidth} onChange={(maxWidth) => set({ maxWidth })} min={40} max={100} unit="%" />
         </FieldGroup>
-      </div>
+      </PanelGroup>
 
-      <FieldGroup label="Border Width">
-        <SliderField value={style.borderWidth} onChange={(borderWidth) => set({ borderWidth })} min={0} max={6} unit="px" />
-      </FieldGroup>
+      <PanelGroup title="Colours">
+        <FieldGroup label="Theme" hint="Recolours the background, headings, body, borders, icons, badges, boxes and buttons together">
+          <SelectField value={style.theme} onChange={(theme) => set({ theme })} options={THEMES} />
+        </FieldGroup>
+        <FieldGroup label="Card Style">
+          <SelectField value={style.variant} onChange={(variant) => set({ variant })} options={VARIANTS} />
+        </FieldGroup>
+        <div className="rounded-xl border border-gray-200 p-3">
+          <p className="text-[11px] font-semibold text-gray-500 mb-2.5">
+            Overrides — leave blank to inherit from the theme
+          </p>
+          <FieldGroup label="Background">
+            <ColorField value={style.backgroundColor} onChange={(backgroundColor) => set({ backgroundColor })} allowEmpty />
+          </FieldGroup>
+          <FieldGroup label="Text">
+            <ColorField value={style.textColor} onChange={(textColor) => set({ textColor })} allowEmpty />
+          </FieldGroup>
+          <FieldGroup label="Border">
+            <ColorField value={style.borderColor} onChange={(borderColor) => set({ borderColor })} allowEmpty />
+          </FieldGroup>
+        </div>
+      </PanelGroup>
 
-      <FieldGroup label="Corner Radius">
-        <SliderField value={style.borderRadius} onChange={(borderRadius) => set({ borderRadius })} min={0} max={36} unit="px" />
-      </FieldGroup>
+      <PanelGroup title="Spacing">
+        <FieldGroup label="Inner Padding">
+          <SliderField value={style.padding} onChange={(padding) => set({ padding })} min={0} max={56} unit="px" />
+        </FieldGroup>
+        <FieldGroup label="Space Above">
+          <SliderField value={style.spacingTop} onChange={(spacingTop) => set({ spacingTop })} min={0} max={80} unit="px" />
+        </FieldGroup>
+        <FieldGroup label="Space Below">
+          <SliderField value={style.spacingBottom} onChange={(spacingBottom) => set({ spacingBottom })} min={0} max={80} unit="px" />
+        </FieldGroup>
+      </PanelGroup>
 
-      <FieldGroup label="Shadow">
-        <SelectField value={style.shadow} onChange={(shadow) => set({ shadow })} options={SHADOWS} />
-      </FieldGroup>
+      <PanelGroup title="Borders">
+        <FieldGroup label="Border Width">
+          <SliderField value={style.borderWidth} onChange={(borderWidth) => set({ borderWidth })} min={0} max={6} unit="px" />
+        </FieldGroup>
+        <FieldGroup label="Corner Radius">
+          <SliderField value={style.borderRadius} onChange={(borderRadius) => set({ borderRadius })} min={0} max={36} unit="px" />
+        </FieldGroup>
+        <FieldGroup label="Separator Line">
+          <SelectField value={style.divider} onChange={(divider) => set({ divider })} options={DIVIDERS} />
+        </FieldGroup>
+      </PanelGroup>
 
-      <FieldGroup label="Inner Padding">
-        <SliderField value={style.padding} onChange={(padding) => set({ padding })} min={0} max={56} unit="px" />
-      </FieldGroup>
-
-      <FieldGroup label="Space Above">
-        <SliderField value={style.spacingTop} onChange={(spacingTop) => set({ spacingTop })} min={0} max={80} unit="px" />
-      </FieldGroup>
-
-      <FieldGroup label="Space Below">
-        <SliderField value={style.spacingBottom} onChange={(spacingBottom) => set({ spacingBottom })} min={0} max={80} unit="px" />
-      </FieldGroup>
-
-      <FieldGroup label="Content Alignment">
-        <SelectField value={style.align} onChange={(align) => set({ align })} options={ALIGNS} />
-      </FieldGroup>
-
-      <FieldGroup label="Section Width" hint="Narrower than 100% centres the block in the column">
-        <SliderField value={style.maxWidth} onChange={(maxWidth) => set({ maxWidth })} min={40} max={100} unit="%" />
-      </FieldGroup>
-
-      <FieldGroup label="Separator Line">
-        <SelectField value={style.divider} onChange={(divider) => set({ divider })} options={DIVIDERS} />
-      </FieldGroup>
+      <PanelGroup title="Effects">
+        <FieldGroup label="Shadow">
+          <SelectField value={style.shadow} onChange={(shadow) => set({ shadow })} options={SHADOWS} />
+        </FieldGroup>
+      </PanelGroup>
     </>
   );
 }

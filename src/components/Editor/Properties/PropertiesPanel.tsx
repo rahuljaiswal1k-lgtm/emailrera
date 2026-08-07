@@ -23,6 +23,7 @@ import { GalleryFields } from './sections/GalleryFields';
 import { DividerFields } from './sections/DividerFields';
 import { CtaBannerFields } from './sections/CtaBannerFields';
 import { ImageBannerFields } from './sections/ImageBannerFields';
+import { FooterFields } from './sections/FooterFields';
 import { StyleFields } from './shared/StyleFields';
 import { ButtonFields } from './shared/ButtonFields';
 import { BoxFields } from './shared/BoxFields';
@@ -148,6 +149,8 @@ function SectionFields({ section }: { section: Section }) {
       return <CtaBannerFields section={section} />;
     case 'imageBanner':
       return <ImageBannerFields section={section} />;
+    case 'footer':
+      return <FooterFields section={section} />;
     default:
       return null;
   }

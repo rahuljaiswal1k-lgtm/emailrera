@@ -84,6 +84,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
         }),
         createSection('stats'),
         createSection('about'),
+        createSection('footer'),
       ]),
   },
   {
@@ -105,6 +106,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
         createSection('mythFact') as MythFactSection,
         createSection('cta'),
         createSection('about'),
+        createSection('footer'),
       ]),
   },
   {
@@ -132,6 +134,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
           heading: 'Avoid Penalties — Talk To Us Today',
         }),
         createSection('about'),
+        createSection('footer'),
       ]),
   },
   {
@@ -156,6 +159,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
         createSection('cta'),
         createSection('stats'),
         createSection('about'),
+        createSection('footer'),
       ]),
   },
   {
@@ -179,6 +183,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
         createSection('quote'),
         createSection('cta'),
         createSection('about'),
+        createSection('footer'),
       ]),
   },
   {
@@ -197,6 +202,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
         createSection('image'),
         createSection('cta'),
         createSection('about'),
+        createSection('footer'),
       ]),
   },
 
@@ -234,6 +240,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
         }),
         createSection('ctaBanner'),
         createSection('about'),
+        createSection('footer'),
       ]),
   },
 
@@ -269,6 +276,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
         createSection('quote'),
         createSection('ctaBanner'),
         createSection('about'),
+        createSection('footer'),
       ]),
   },
 
@@ -292,6 +300,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
         createSection('testimonial'),
         createSection('ctaBanner'),
         createSection('about'),
+        createSection('footer'),
       ]),
   },
 
@@ -320,6 +329,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
         createSection('faq'),
         createSection('cta'),
         createSection('about'),
+        createSection('footer'),
       ]),
   },
 
@@ -340,6 +350,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
         withOverrides(createSection('columns') as ColumnsSection, { columnStyle: 'card', count: 2, heading: 'WHAT COMES NEXT' }),
         createSection('ctaBanner'),
         createSection('about'),
+        createSection('footer'),
       ]),
   },
 
@@ -364,6 +375,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
         createSection('quote'),
         createSection('cta'),
         createSection('about'),
+        createSection('footer'),
       ]),
   },
 ];

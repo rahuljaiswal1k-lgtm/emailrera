@@ -8,6 +8,8 @@
 
 import { nanoid } from './id';
 import { esc, EMAIL_FONT, isDark } from './htmlEscape';
+import { THEME_TOKENS, type ThemeTokens } from './blockStyle';
+import { SPACE } from './designTokens';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'dark' | 'yellow' | 'ghost';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -58,14 +60,24 @@ interface VariantPaint {
   border: string;
 }
 
-const VARIANT_PAINT: Record<ButtonVariant, VariantPaint> = {
-  primary: { bg: '#FFDA4B', fg: '#1D1F1F', border: '#FFDA4B' },
-  secondary: { bg: '#F3F4F6', fg: '#1D1F1F', border: '#D9DDE3' },
-  outline: { bg: 'transparent', fg: '#1D1F1F', border: '#1D1F1F' },
-  dark: { bg: '#1D1F1F', fg: '#FFFFFF', border: '#1D1F1F' },
-  yellow: { bg: '#FFDA4B', fg: '#1D1F1F', border: '#E9C43C' },
-  ghost: { bg: 'transparent', fg: '#1D1F1F', border: 'transparent' },
-};
+/**
+ * Buttons inherit from the block's theme. `primary` and `secondary` follow the
+ * theme so a dark section gets a light-on-dark button automatically; the named
+ * variants (dark / yellow / outline / ghost) stay literal because the user
+ * picked them explicitly.
+ */
+function variantPaint(variant: ButtonVariant, t?: ThemeTokens): Record<ButtonVariant, VariantPaint>[ButtonVariant] {
+  const theme = t ?? THEME_TOKENS.light;
+  const table: Record<ButtonVariant, VariantPaint> = {
+    primary: { bg: theme.buttonBg, fg: theme.buttonText, border: theme.buttonBorder },
+    secondary: { bg: theme.surface, fg: theme.heading, border: theme.border },
+    outline: { bg: 'transparent', fg: theme.heading, border: theme.heading },
+    dark: { bg: '#1D1F1F', fg: '#FFFFFF', border: '#1D1F1F' },
+    yellow: { bg: '#FFDA4B', fg: '#1D1F1F', border: '#E9C43C' },
+    ghost: { bg: 'transparent', fg: theme.heading, border: 'transparent' },
+  };
+  return table[variant] ?? table.primary;
+}
 
 const SIZE_METRICS: Record<ButtonSize, { padY: number; padX: number; font: number; height: number; width: number }> = {
   sm: { padY: 9, padX: 20, font: 13, height: 36, width: 150 },
@@ -83,16 +95,15 @@ function radiusFor(shape: ButtonShape, height: number): number {
  * A single button. Outlook gets a VML roundrect (it ignores padding and
  * border-radius on anchors); every other client gets the styled <a>.
  */
-export function renderButton(btn: ButtonConfig): string {
+export function renderButton(btn: ButtonConfig, t?: ThemeTokens): string {
   if (!btn.text) return '';
-  const paint = VARIANT_PAINT[btn.variant] ?? VARIANT_PAINT.primary;
+  const paint = variantPaint(btn.variant, t);
   const m = SIZE_METRICS[btn.size] ?? SIZE_METRICS.md;
   const radius = radiusFor(btn.shape, m.height);
 
-  // A custom background still needs readable text.
-  const fg = paint.bg !== 'transparent' && paint.bg !== '#FFDA4B' && paint.bg !== '#F3F4F6'
-    ? (isDark(paint.bg) ? '#FFFFFF' : '#111111')
-    : paint.fg;
+  // Trust the theme's paired foreground; only re-derive when the pairing is
+  // unknown (a literal variant on an unusual surface).
+  const fg = paint.fg || (isDark(paint.bg) ? '#FFFFFF' : '#111111');
 
   const borderCss = paint.border !== 'transparent' ? `border:1px solid ${paint.border};` : '';
   const bgCss = paint.bg !== 'transparent' ? `background:${paint.bg};` : '';
@@ -120,7 +131,7 @@ export function renderButton(btn: ButtonConfig): string {
 }
 
 /** Renders a whole button group, honouring alignment and inline/stacked layout. */
-export function renderButtonGroup(group: ButtonGroup | undefined): string {
+export function renderButtonGroup(group: ButtonGroup | undefined, t?: ThemeTokens): string {
   if (!group || !group.enabled) return '';
   const buttons = group.buttons.filter((b) => b.text);
   if (buttons.length === 0) return '';
@@ -129,16 +140,16 @@ export function renderButtonGroup(group: ButtonGroup | undefined): string {
     const rows = buttons
       .map(
         (b) =>
-          `<tr><td align="${group.align}" style="padding-bottom:10px;">${renderButton(b)}</td></tr>`
+          `<tr><td align="${group.align}" style="padding-bottom:10px;">${renderButton(b, t)}</td></tr>`
       )
       .join('');
-    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px;">${rows}</table>`;
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:${SPACE.lg}px;">${rows}</table>`;
   }
 
   const cells = buttons
-    .map((b) => `<td style="padding:0 6px 10px;">${renderButton(b)}</td>`)
+    .map((b) => `<td style="padding:0 6px 10px;">${renderButton(b, t)}</td>`)
     .join('');
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px;"><tr><td align="${group.align}">
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:${SPACE.lg}px;"><tr><td align="${group.align}">
     <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>${cells}</tr></table>
   </td></tr></table>`;
 }

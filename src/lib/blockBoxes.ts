@@ -12,6 +12,7 @@
 import { nanoid } from './id';
 import { esc, nl2br, EMAIL_FONT } from './htmlEscape';
 import { getIcon } from '../data/icons';
+import type { ThemeTokens } from './blockStyle';
 
 export type BoxKind =
   | 'info'
@@ -47,7 +48,7 @@ export interface ContainerBox {
   padding: number;
 }
 
-interface BoxPreset {
+export interface BoxPreset {
   label: string;
   bg: string;
   border: string;
@@ -107,8 +108,27 @@ function checkRow(text: string, accent: string, color: string): string {
   </tr></table>`;
 }
 
-export function renderBox(box: ContainerBox): string {
-  const preset = BOX_PRESETS[box.kind] ?? BOX_PRESETS.info;
+/**
+ * On a dark or yellow themed block, the light preset surfaces would look
+ * pasted-on. Semantic boxes (info / warning / success) keep their meaning
+ * colour; neutral ones adopt the surrounding theme's surface.
+ */
+function themedPreset(preset: BoxPreset, kind: BoxKind, t?: ThemeTokens): BoxPreset {
+  if (!t) return preset;
+  const SEMANTIC: BoxKind[] = ['info', 'warning', 'success', 'callout'];
+  if (SEMANTIC.includes(kind)) return preset;
+  if (kind === 'dark' || kind === 'yellow' || kind === 'quote') return preset;
+  return {
+    ...preset,
+    bg: kind === 'outline' ? 'transparent' : t.boxBg,
+    border: t.boxBorder,
+    text: t.boxText,
+    accent: t.accent,
+  };
+}
+
+export function renderBox(box: ContainerBox, t?: ThemeTokens): string {
+  const preset = themedPreset(BOX_PRESETS[box.kind] ?? BOX_PRESETS.info, box.kind, t);
 
   // Layout helpers render no card at all.
   if (box.kind === 'spacer') {
@@ -199,7 +219,7 @@ export function renderBox(box: ContainerBox): string {
   </table>`;
 }
 
-export function renderBoxes(boxes: ContainerBox[] | undefined): string {
+export function renderBoxes(boxes: ContainerBox[] | undefined, t?: ThemeTokens): string {
   if (!boxes || boxes.length === 0) return '';
-  return boxes.map(renderBox).join('');
+  return boxes.map((b) => renderBox(b, t)).join('');
 }

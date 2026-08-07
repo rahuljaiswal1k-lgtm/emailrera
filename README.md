@@ -140,6 +140,35 @@ shows a red **Not saved** indicator in the top bar instead of failing silently.
 For a shared/multi-person setup, the next step would be swapping `src/lib/storage.ts` for
 real API calls against a small backend.
 
+## Theme engine
+
+`lib/blockStyle.ts` resolves a block's theme into a **complete token set** —
+`bg`, `cardBg`, `surface`, `heading`, `text`, `muted`, `border`, `divider`,
+`accent`, `iconBg`, `iconFg`, `badgeBg`, `boxBg`, `buttonBg` and more. Every
+renderer reads those tokens instead of hardcoding hex, which is what makes
+switching a section's Theme recolour its heading, body, borders, icons, badges,
+container boxes *and* buttons together rather than just the background.
+
+Inheritance rules:
+
+- the theme supplies every token;
+- the variant adjusts the surface and border treatment;
+- an explicit **Background** override re-derives the readable foreground, so a
+  custom dark colour never leaves black text on black;
+- an explicit **Text** override cascades to headings and muted text;
+- only explicit overrides break inheritance — everything else cascades.
+
+Design scales (radius, spacing, typography, icon and card sizing) live in
+`lib/designTokens.ts`, along with 13 **design presets** (Clean, Minimal, Modern,
+Corporate, Premium, Government Circular, Compliance Alert, Editorial, Magazine,
+Insight, Dark, Luxury, Professional). A preset is a plain `BlockStyle` patch, so
+everything stays editable after applying one, and it can be applied to a single
+block or to every section at once.
+
+**One card per block.** If the shared wrapper already paints a surface with
+padding, the block skips its own card. That is what stops a card-preset Content
+section rendering a card inside a card.
+
 ## The block design system
 
 Every section is a **block**, and each block composes three shared layers that live
@@ -179,6 +208,17 @@ select their component through a *variant* rather than being separate types:
 | `divider` | Divider Section, Spacer, dotted rule, labelled rule |
 | `ctaBanner` | CTA Banner, CTA Card (centred or split with image) |
 | `imageBanner` | Image Banner, Hero Image |
+| `footer` | Offices, social row, contact line, legal, disclaimer, unsubscribe |
+
+The **Hero** is a layout system rather than a single shape: `heroLayout` picks
+between Classic, Strip Banner, Image beside / above / below text, Minimal, Dark
+and Editorial, and every element (top strip, bottom strip, logo, badge, heading,
+subtitle, description, notice strip, accent divider, image, primary and
+secondary CTA) is independently optional.
+
+The **Footer** is a real block — add it and it replaces the built-in page
+footer. Newsletters saved before it existed keep the built-in one, so nothing
+loses its footer.
 
 Plus the original nine — Hero, Content, Information Card, Myth vs Fact, Image, Quote,
 CTA, Statistics, About — all unchanged and all now able to carry style, buttons and boxes.

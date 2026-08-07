@@ -24,10 +24,23 @@ import type {
   DividerSection,
   CtaBannerSection,
   ImageBannerSection,
+  FooterSection,
+  HeroLayout,
 } from '../types/newsletter';
 import { getIcon } from '../data/icons';
 import { esc, nl2br, isDark, EMAIL_FONT } from './htmlEscape';
-import { resolveStyle, styleForType, wrapBlock, spacerRow, HEADING_SIZES, computeTokens } from './blockStyle';
+import {
+  resolveStyle,
+  styleForType,
+  tokensFor,
+  wrapBlock,
+  spacerRow,
+  HEADING_SIZES,
+  computeTokens,
+  THEME_TOKENS,
+  type ThemeTokens,
+} from './blockStyle';
+import { RADIUS, SPACE, TYPE, ICON_SIZE, CARD_PADDING } from './designTokens';
 import { renderButtonGroup } from './blockButtons';
 import { renderBoxes } from './blockBoxes';
 import { SOCIAL_SVG_FALLBACK, getBinding, type BrandSlotKey } from './brandAssets';
@@ -39,108 +52,227 @@ export type ImageResolver = (imageId: string | null) => string | null; // return
 
 const spacer = spacerRow;
 
-function cardOpen(): string {
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #D9DDE3;border-radius:22px;background:#FFFFFF;"><tr><td style="padding:28px;">`;
+/** Fallback tokens for helpers called without an explicit theme. */
+const BASE_T = THEME_TOKENS.light;
+
+function cardOpen(t: ThemeTokens = BASE_T): string {
+  // cardBg (never transparent) so a plain/minimal variant on a dark theme still
+  // paints a dark card rather than falling back to white.
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${t.border};border-radius:${RADIUS.xl}px;background:${t.cardBg};"><tr><td style="padding:${CARD_PADDING}px;">`;
 }
 function cardClose(): string {
   return `</td></tr></table>`;
 }
 
-function iconBadge(iconKey: string): string {
-  const icon = getIcon(iconKey);
-  return `<div style="width:44px;height:44px;border-radius:50%;background:#1D1F1F;text-align:center;line-height:44px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;">${icon.svg}</svg></div>`;
+/**
+ * Draw the block's own card only when the shared wrapper is NOT already
+ * painting one. Without this, applying a card/elevated preset to a Content
+ * section produces a card inside a card — the "collection of separate widgets"
+ * look. One card per block, always.
+ */
+function card(inner: string, t: ThemeTokens, ownCard: boolean): string {
+  return ownCard ? cardOpen(t) + inner + cardClose() : inner;
 }
 
-function sectionHeading(iconKey: string, heading: string): string {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td valign="middle" width="56">${iconBadge(
-    iconKey
-  )}</td><td valign="middle"><div style="font-family:${FONT};font-size:16px;font-weight:700;letter-spacing:1px;color:#111111;">${esc(
-    heading.toUpperCase()
-  )}</div></td></tr></table>`;
+/** True when wrapBlock() already gives this block a surface + padding. */
+function wrapperPaintsCard(style: { variant: string; padding: number }): boolean {
+  return style.padding > 0 && style.variant !== 'plain' && style.variant !== 'minimal';
+}
+
+function iconBadge(iconKey: string, t: ThemeTokens = BASE_T, size: number = ICON_SIZE.lg): string {
+  const icon = getIcon(iconKey);
+  const inner = Math.round(size * 0.52);
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${t.iconBg};text-align:center;line-height:${size}px;"><svg width="${inner}" height="${inner}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;">${icon.svg}</svg></div>`;
+}
+
+function sectionHeading(iconKey: string, heading: string, t: ThemeTokens = BASE_T): string {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td valign="middle" width="${
+    ICON_SIZE.lg + 12
+  }">${iconBadge(iconKey, t)}</td><td valign="middle"><div style="font-family:${FONT};font-size:${TYPE.h4.size}px;line-height:${
+    TYPE.h4.lh
+  }px;font-weight:700;letter-spacing:1px;color:${t.heading};">${esc(heading.toUpperCase())}</div></td></tr></table>`;
 }
 
 // ---------------------------------------------------------------------------
 // Section renderers
 // ---------------------------------------------------------------------------
 
-function renderHero(s: HeroSection): string {
+/**
+ * Hero — a layout system rather than a single shape.
+ *
+ * `heroLayout` picks the arrangement; every element (top strip, logo, badge,
+ * heading, subtitle, description, notice strip, image, CTAs, divider) is
+ * independently optional, so one component covers the classic banner, the
+ * strip-and-badge header from the reference newsletter, image heroes, minimal
+ * heroes, dark heroes and editorial heroes.
+ */
+function renderHero(s: HeroSection, settings: GlobalSettings, resolve: ImageResolver): string {
   const style = styleForType('hero', s.style);
-  const textColor = isDark(s.backgroundColor) ? '#FFFFFF' : '#111111';
-  const chipBg = isDark(s.backgroundColor) ? '#FFDA4B' : '#1D1F1F';
-  const chipFg = isDark(s.backgroundColor) ? '#1D1F1F' : '#FFFFFF';
+  const layout: HeroLayout = s.heroLayout ?? 'classic';
 
-  // Edge-to-edge heroes need square corners and roomier padding; inset heroes
-  // keep the original rounded card so existing newsletters are unchanged.
-  const radiusCss = style.fullBleed ? '' : 'border-radius:18px;';
-  const pad = style.fullBleed ? '34px 32px 30px' : '32px 32px';
+  const bg = s.backgroundColor || '#FFDA4B';
+  const onDark = isDark(bg);
+  const heading = s.headingColor || (onDark ? '#FFFFFF' : '#111111');
+  const bodyColor = s.textColorOverride || (onDark ? '#E6E8E8' : '#333333');
+  const chipBg = s.stripColor || (onDark ? '#FFDA4B' : '#1D1F1F');
+  const chipFg = s.stripTextColor || (isDark(chipBg) ? '#FFFFFF' : '#1D1F1F');
 
-  const badge = s.badge
-    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${
-        s.textAlign === 'center' ? 'center' : 'left'
-      }" style="margin-bottom:14px;"><tr><td style="background:${chipBg};border-radius:100px;padding:6px 16px;font-family:${FONT};font-size:11px;font-weight:700;letter-spacing:1.2px;color:${chipFg};">${esc(
-        s.badge.toUpperCase()
-      )}</td></tr></table>`
+  const align = s.textAlign;
+  const alignAttr = align === 'center' ? 'center' : align === 'right' ? 'right' : 'left';
+
+  const radiusCss = style.fullBleed ? '' : `border-radius:${s.borderRadius ?? RADIUS.lg}px;`;
+  const padY = s.heroPadding ?? (layout === 'minimal' ? 26 : 34);
+  const pad = `${padY}px 32px ${Math.max(18, padY - 4)}px`;
+
+  // --- individual elements -------------------------------------------------
+  const topStrip = s.showTopStrip ? heroStrip(s.topStripText ?? '', s.topStripColor || '#101010', s.topStripTextColor || '#FFFFFF', alignAttr) : '';
+  const bottomStrip = s.showBottomStrip ? heroStrip(s.bottomStripText ?? '', s.bottomStripColor || '#101010', s.bottomStripTextColor || '#FFFFFF', alignAttr) : '';
+
+  const logoSrc = s.showLogo ? brandSrc(settings, 'logo', resolve) ?? resolve(settings.logoImageId) : null;
+  const logo = logoSrc
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${alignAttr}" style="margin-bottom:${SPACE.md}px;"><tr><td><img src="${esc(
+        logoSrc
+      )}" alt="${esc(settings.companyName)}" width="${s.logoWidth || 120}" style="display:block;border:0;height:auto;"></td></tr></table>`
+    : '';
+
+  const badge = heroPill(s.badge ?? '', chipBg, chipFg, alignAttr, `margin-bottom:${SPACE.sm}px;`, RADIUS.pill);
+  const notice = heroPill(s.noticeText ?? '', chipBg, chipFg, alignAttr, `margin-top:${SPACE.md}px;`, RADIUS.sm);
+
+  const titleSize = layout === 'minimal' ? TYPE.h2 : layout === 'editorial' ? TYPE.display : TYPE.h1;
+  const title = s.title
+    ? `<h1 class="title" style="margin:0;font-family:${FONT};font-size:${titleSize.size}px;line-height:${titleSize.lh}px;font-weight:bold;color:${heading};letter-spacing:${titleSize.tracking}px;">${esc(
+        s.title
+      )}</h1>`
     : '';
 
   const subtitle =
     s.showSubtitle && s.subtitle
-      ? `<p style="margin:10px 0 0;font-family:${FONT};font-size:15px;line-height:22px;color:${textColor};opacity:0.85;">${nl2br(
+      ? `<p style="margin:${SPACE.sm}px 0 0;font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:${TYPE.bodyLg.lh}px;color:${bodyColor};">${nl2br(
           s.subtitle
         )}</p>`
       : '';
 
-  const notice = s.noticeText
-    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${
-        s.textAlign === 'center' ? 'center' : 'left'
-      }" style="margin-top:18px;"><tr><td style="background:${chipBg};border-radius:8px;padding:10px 18px;font-family:${FONT};font-size:11.5px;font-weight:700;letter-spacing:.8px;color:${chipFg};text-align:center;">${esc(
-        s.noticeText.toUpperCase()
-      )}</td></tr></table>`
+  const description = s.description
+    ? `<p style="margin:${SPACE.sm}px 0 0;font-family:${FONT};font-size:${TYPE.body.size}px;line-height:${TYPE.body.lh}px;color:${bodyColor};">${nl2br(
+        s.description
+      )}</p>`
     : '';
 
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${s.backgroundColor};${radiusCss}"><tr><td style="padding:${pad};text-align:${s.textAlign};">
-    ${badge}
-    <h1 class="title" style="margin:0;font-family:${FONT};font-size:28px;line-height:36px;font-weight:bold;color:${textColor};">${esc(s.title)}</h1>
-    ${subtitle}
-    ${notice}
-  </td></tr></table>`;
+  const divider = s.showDivider
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${alignAttr}" style="margin-top:${SPACE.md}px;"><tr><td style="border-top:3px solid ${chipBg};font-size:0;line-height:0;width:56px;">&nbsp;</td></tr></table>`
+    : '';
+
+  const ctas = [
+    s.ctaText ? { text: s.ctaText, url: s.ctaUrl ?? '', bg: chipBg, fg: chipFg } : null,
+    s.secondaryCtaText ? { text: s.secondaryCtaText, url: s.secondaryCtaUrl ?? '', bg: 'transparent', fg: heading } : null,
+  ].filter(Boolean) as { text: string; url: string; bg: string; fg: string }[];
+
+  const ctaRow = ctas.length
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${alignAttr}" style="margin-top:${SPACE.md}px;"><tr>${ctas
+        .map(
+          (c) =>
+            `<td style="padding-right:10px;"><a href="${esc(c.url || '#')}" target="_blank" style="display:inline-block;background:${
+              c.bg
+            };border:1px solid ${c.bg === 'transparent' ? c.fg : c.bg};color:${c.fg};font-family:${FONT};font-size:14px;font-weight:bold;text-decoration:none;padding:12px 26px;border-radius:${RADIUS.sm}px;">${esc(
+              c.text
+            )}</a></td>`
+        )
+        .join('')}</tr></table>`
+    : '';
+
+  const imgSrc = resolve(s.imageId ?? null);
+  const image = imgSrc
+    ? `<img src="${esc(imgSrc)}" alt="${esc(s.title)}" width="100%" style="display:block;width:100%;max-width:100%;height:auto;">`
+    : '';
+
+  const body = `${logo}${badge}${title}${subtitle}${description}${divider}${notice}${ctaRow}`;
+  const bodyCell = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${bg};${
+    style.fullBleed ? '' : radiusCss
+  }"><tr><td style="padding:${pad};text-align:${align};">${body}</td></tr></table>`;
+
+  // --- layouts -------------------------------------------------------------
+  let core: string;
+  switch (layout) {
+    case 'imageSide':
+      // Text and image side by side, stacking on mobile.
+      core = image
+        ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${bg};${
+            style.fullBleed ? '' : radiusCss
+          }"><tr>
+            <td class="stack" width="56%" valign="middle" style="padding:${pad};text-align:${align};">${body}</td>
+            <td class="stack" width="44%" valign="middle" style="font-size:0;line-height:0;">${image}</td>
+          </tr></table>`
+        : bodyCell;
+      break;
+
+    case 'imageBelow':
+      core = bodyCell + (image ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="font-size:0;line-height:0;">${image}</td></tr></table>` : '');
+      break;
+
+    case 'imageAbove':
+      core = (image ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="font-size:0;line-height:0;">${image}</td></tr></table>` : '') + bodyCell;
+      break;
+
+    case 'classic':
+    case 'stripBanner':
+    case 'minimal':
+    case 'dark':
+    case 'editorial':
+    default:
+      core = bodyCell;
+      break;
+  }
+
+  const wrapCss = style.fullBleed ? '' : `border-radius:${s.borderRadius ?? RADIUS.lg}px;overflow:hidden;`;
+  if (!topStrip && !bottomStrip) {
+    return style.fullBleed
+      ? core
+      : `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="${wrapCss}"><tr><td style="font-size:0;line-height:0;">${core}</td></tr></table>`;
+  }
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="${wrapCss}"><tr><td style="font-size:0;line-height:0;">${topStrip}${core}${bottomStrip}</td></tr></table>`;
 }
 
-function renderContentBody(s: ContentSection): string {
-  if (s.bodyType === 'paragraph') {
-    return `<p style="margin:18px 0 0;font-family:${FONT};font-size:15px;line-height:26px;color:#1A1A1A;text-align:justify;">${nl2br(s.paragraph)}</p>`;
-  }
+function renderContentBody(s: ContentSection, t: ThemeTokens): string {
+  const para = (txt: string) =>
+    `<p style="margin:${SPACE.md}px 0 0;font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:${TYPE.bodyLg.lh}px;color:${t.text};text-align:justify;">${nl2br(txt)}</p>`;
+
+  if (s.bodyType === 'paragraph') return para(s.paragraph);
+
   const rows = s.items
     .map((item, i) => {
       const marker = s.bodyType === 'numbered' ? `${i + 1}.` : '&bull;';
-      return `<tr><td valign="top" width="22" style="font-family:${FONT};font-size:15px;line-height:28px;color:#111111;">${marker}</td><td style="font-family:${FONT};font-size:15px;line-height:28px;color:#1A1A1A;text-align:justify;">${nl2br(
+      return `<tr><td valign="top" width="22" style="font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:28px;color:${t.heading};">${marker}</td><td style="font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:28px;color:${t.text};text-align:justify;padding-bottom:${SPACE.xxs}px;">${nl2br(
         item
       )}</td></tr>`;
     })
     .join('');
-  const list = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px;">${rows}</table>`;
-  if (s.bodyType === 'mixed') {
-    const para = s.paragraph
-      ? `<p style="margin:18px 0 0;font-family:${FONT};font-size:15px;line-height:26px;color:#1A1A1A;text-align:justify;">${nl2br(s.paragraph)}</p>`
-      : '';
-    return para + list;
-  }
+  const list = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:${SPACE.md}px;">${rows}</table>`;
+  if (s.bodyType === 'mixed') return (s.paragraph ? para(s.paragraph) : '') + list;
   return list;
 }
 
-function renderContent(s: ContentSection): string {
+function renderContent(s: ContentSection, t: ThemeTokens, ownCard: boolean): string {
   const sub = s.subheading
-    ? `<p style="margin:18px 0 0;font-family:${FONT};font-size:14px;line-height:22px;color:#555555;">${nl2br(s.subheading)}</p>`
+    ? `<p style="margin:${SPACE.sm}px 0 0;font-family:${FONT};font-size:${TYPE.small.size}px;line-height:${TYPE.small.lh}px;color:${t.muted};">${nl2br(
+        s.subheading
+      )}</p>`
     : '';
-  return `${cardOpen()}${sectionHeading(s.icon, s.heading)}${sub}${renderContentBody(s)}${cardClose()}`;
+  return card(`${sectionHeading(s.icon, s.heading, t)}${sub}${renderContentBody(s, t)}`, t, ownCard);
 }
 
-function renderInfoCard(s: InfoCardSection): string {
-  return `${cardOpen()}
-    <div style="font-family:${FONT};font-size:16px;font-weight:700;letter-spacing:.5px;color:#111111;margin-bottom:14px;">${esc(s.heading.toUpperCase())}</div>
-    <div style="background:${s.backgroundColor};border-radius:14px;padding:20px;border-left:4px solid ${s.borderColor};text-align:left;">
-      <p style="margin:0;font-family:${FONT};font-size:15px;line-height:26px;color:#444444;text-align:justify;">${nl2br(s.text)}</p>
+function renderInfoCard(s: InfoCardSection, t: ThemeTokens, ownCard: boolean): string {
+  return card(`
+    <div style="font-family:${FONT};font-size:${TYPE.h4.size}px;font-weight:700;letter-spacing:.5px;color:${t.heading};margin-bottom:${SPACE.sm}px;">${esc(
+    s.heading.toUpperCase()
+  )}</div>
+    <div style="background:${s.backgroundColor || t.surfaceAlt};border-radius:${RADIUS.md}px;padding:${SPACE.lg - 4}px;border-left:4px solid ${
+    s.borderColor || t.accent
+  };text-align:left;">
+      <p style="margin:0;font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:${TYPE.bodyLg.lh}px;color:${t.text};text-align:justify;">${nl2br(
+    s.text
+  )}</p>
     </div>
-  ${cardClose()}`;
+  `, t, ownCard);
 }
 
 function mythFactRow(text: string, isMyth: boolean): string {
@@ -153,17 +285,19 @@ function mythFactRow(text: string, isMyth: boolean): string {
   </tr></table>`;
 }
 
-function renderMythFact(s: MythFactSection): string {
+function renderMythFact(s: MythFactSection, t: ThemeTokens, ownCard: boolean): string {
   const mythRows = s.myths.map((m) => mythFactRow(m, true)).join('');
   const factRows = s.facts.map((f) => mythFactRow(f, false)).join('');
-  return `${cardOpen()}
-    ${sectionHeading('warning', s.heading)}
-    <p style="margin:18px 0 0;font-family:${FONT};font-size:14px;line-height:22px;color:#555555;">${esc(s.mythsIntro)}</p>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;background:#FDECEC;border:1px solid #F4C6C6;border-radius:14px;"><tr><td style="padding:18px 20px 4px;">${mythRows}</td></tr></table>
-    ${spacer(16)}
-    <p style="margin:0;font-family:${FONT};font-size:14px;line-height:22px;color:#555555;">${esc(s.factsIntro)}</p>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;background:#EAF7ED;border:1px solid #BFE4C8;border-radius:14px;"><tr><td style="padding:18px 20px 4px;">${factRows}</td></tr></table>
-  ${cardClose()}`;
+  const intro = (txt: string, top: number) =>
+    `<p style="margin:${top}px 0 0;font-family:${FONT};font-size:${TYPE.small.size}px;line-height:${TYPE.small.lh}px;color:${t.muted};">${esc(txt)}</p>`;
+  return card(`
+    ${sectionHeading('warning', s.heading, t)}
+    ${intro(s.mythsIntro, SPACE.md)}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:${SPACE.sm}px;background:#FDECEC;border:1px solid #F4C6C6;border-radius:${RADIUS.md}px;"><tr><td style="padding:${SPACE.md}px ${SPACE.md + 2}px ${SPACE.xxs}px;">${mythRows}</td></tr></table>
+    ${spacer(SPACE.md)}
+    ${intro(s.factsIntro, 0)}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:${SPACE.sm}px;background:#EAF7ED;border:1px solid #BFE4C8;border-radius:${RADIUS.md}px;"><tr><td style="padding:${SPACE.md}px ${SPACE.md + 2}px ${SPACE.xxs}px;">${factRows}</td></tr></table>
+  `, t, ownCard);
 }
 
 /**
@@ -256,16 +390,18 @@ function renderQuote(s: QuoteSection): string {
   </table>`;
 }
 
-function renderCTA(s: CTASection): string {
+function renderCTA(s: CTASection, t: ThemeTokens, ownCard: boolean): string {
   const btnTextColor = isDark(s.buttonColor) ? '#FFFFFF' : '#111111';
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #E3E6EC;border-radius:14px;"><tr><td style="padding:20px;">
-    <div style="font-family:${FONT};font-size:17px;font-weight:700;letter-spacing:1px;color:#111111;text-align:center;text-transform:uppercase;margin-bottom:6px;">${esc(
+  const chrome = ownCard ? `border:1px solid ${t.border};border-radius:${RADIUS.md}px;background:${t.cardBg};` : '';
+  const innerPad = ownCard ? `${SPACE.lg}px ${SPACE.lg}px ${SPACE.lg + 2}px` : '0';
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="${chrome}"><tr><td style="padding:${innerPad};">
+    <div style="font-family:${FONT};font-size:${TYPE.h3.size}px;line-height:${TYPE.h3.lh}px;font-weight:700;letter-spacing:.8px;color:${t.heading};text-align:center;text-transform:uppercase;margin-bottom:${SPACE.xs}px;">${esc(
     s.heading
   )}</div>
-    <p style="margin:0;font-family:${FONT};font-size:14px;line-height:22px;color:#555555;text-align:center;max-width:520px;margin-left:auto;margin-right:auto;">${nl2br(
+    <p style="margin:0 auto;max-width:460px;font-family:${FONT};font-size:${TYPE.body.size}px;line-height:${TYPE.body.lh}px;color:${t.muted};text-align:center;">${nl2br(
     s.description
   )}</p>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding-top:20px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding-top:${SPACE.lg - 4}px;">
       <!--[if mso]>
       <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${esc(
         s.buttonUrl
@@ -274,7 +410,7 @@ function renderCTA(s: CTASection): string {
       </v:roundrect>
       <![endif]-->
       <!--[if !mso]><!-- -->
-      <a href="${esc(s.buttonUrl)}" target="_blank" style="display:inline-block;background:${s.buttonColor};color:${btnTextColor};font-family:${FONT};font-size:15px;font-weight:bold;text-decoration:none;padding:13px 32px;border-radius:10px;">${esc(
+      <a href="${esc(s.buttonUrl)}" target="_blank" style="display:inline-block;background:${s.buttonColor};color:${btnTextColor};font-family:${FONT};font-size:15px;font-weight:bold;text-decoration:none;padding:13px 32px;border-radius:${RADIUS.sm}px;">${esc(
     s.buttonText
   )}</a>
       <!--<![endif]-->
@@ -282,55 +418,115 @@ function renderCTA(s: CTASection): string {
   </td></tr></table>`;
 }
 
-function renderStats(s: StatsSection): string {
+function renderStats(s: StatsSection, t: ThemeTokens, ownCard: boolean): string {
   const shown = s.metrics.filter((m) => m.show).slice(0, 4);
   const width = shown.length > 0 ? Math.floor(100 / shown.length) : 25;
   const cells = shown
     .map(
       (m) =>
-        `<td width="${width}%" align="center" class="stat-cell" style="padding-bottom:10px;"><div style="font-family:${FONT};font-size:26px;font-weight:bold;color:#111111;">${esc(
+        `<td width="${width}%" align="center" class="stat-cell" style="padding-bottom:${SPACE.sm}px;"><div style="font-family:${FONT};font-size:26px;line-height:32px;font-weight:bold;color:${t.heading};">${esc(
           m.number
-        )}</div><div style="font-family:${FONT};font-size:12px;color:#666666;margin-top:4px;">${esc(m.label)}</div></td>`
+        )}</div><div style="font-family:${FONT};font-size:${TYPE.caption.size}px;line-height:${TYPE.caption.lh}px;color:${t.muted};margin-top:${SPACE.xxs}px;">${esc(
+          m.label
+        )}</div></td>`
     )
     .join('');
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #E3E6EC;border-radius:14px;"><tr><td style="padding:24px;">
-    <div style="font-family:${FONT};font-size:13px;font-weight:bold;letter-spacing:.8px;color:#111111;text-align:center;margin-bottom:20px;">${esc(
+  const chrome = ownCard ? `border:1px solid ${t.border};border-radius:${RADIUS.md}px;background:${t.cardBg};` : '';
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="${chrome}"><tr><td style="padding:${ownCard ? CARD_PADDING : 0}px;">
+    <div style="font-family:${FONT};font-size:${TYPE.eyebrow.size}px;font-weight:bold;letter-spacing:1px;color:${t.heading};text-align:center;margin-bottom:${SPACE.lg - 4}px;">${esc(
     s.heading.toUpperCase()
   )}</div>
     <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>${cells}</tr></table>
   </td></tr></table>`;
 }
 
-function renderAbout(s: AboutSection, settings: GlobalSettings, resolve: ImageResolver): string {
+/**
+ * About block — rebuilt to match the reference newsletter's structure.
+ * Every element is individually toggleable and the whole thing follows the
+ * block's theme, so it works on dark, light, grey or yellow.
+ */
+function renderAbout(s: AboutSection, settings: GlobalSettings, resolve: ImageResolver, t: ThemeTokens): string {
   const logoSrc = brandSrc(settings, 'logo', resolve) ?? resolve(settings.logoImageId);
-  const logo = logoSrc
-    ? `<img src="${esc(logoSrc)}" alt="${esc(settings.companyName)}" width="110" style="display:block;border:0;outline:none;text-decoration:none;height:auto;">`
+  const showLogo = s.showLogo !== false;
+  const showDivider = s.showDivider !== false;
+  const showContact = s.showContact !== false;
+  const showPhones = s.showPhones !== false;
+  const showEmail = s.showEmail !== false;
+  const logoWidth = s.logoWidth || 96;
+
+  const logo =
+    showLogo && logoSrc
+      ? `<img src="${esc(logoSrc)}" alt="${esc(settings.companyName)}" width="${logoWidth}" style="display:block;border:0;outline:none;text-decoration:none;height:auto;">`
+      : '';
+
+  // Label and logo sit on one baseline, as in the reference.
+  const headRow = `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+      ${
+        s.heading
+          ? `<td valign="middle" style="font-family:${FONT};font-size:${TYPE.eyebrow.size}px;font-weight:bold;letter-spacing:1px;color:${t.heading};padding-right:10px;">${esc(
+              s.heading.toUpperCase()
+            )}</td>`
+          : ''
+      }
+      ${logo ? `<td valign="middle">${logo}</td>` : ''}
+    </tr></table>`;
+
+  const description = s.description
+    ? `<p style="margin:${SPACE.sm}px 0 0;font-family:${FONT};font-size:${TYPE.small.size}px;line-height:${TYPE.small.lh + 1}px;color:${t.text};text-align:justify;">${nl2br(
+        s.description
+      )}</p>`
     : '';
-  const phones = settings.phones
-    .map(
-      (p) =>
-        `<div style="font-family:${FONT};font-size:14px;font-weight:bold;line-height:26px;"><span style="color:#fff;">${esc(
-          p.label
-        )} : ${esc(p.number)}</span></div>`
-    )
-    .join('');
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #1d1f1f;border-radius:14px;background:#1d1f1f;"><tr><td style="padding:20px 22px;">
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-      <td style="font-family:${FONT};font-size:13px;font-weight:bold;letter-spacing:.8px;color:#fff;padding-right:10px;">${esc(
-    s.heading.toUpperCase()
-  )}</td>
-      <td>${logo}</td>
-    </tr></table>
-    <p style="margin:10px 0 0;font-family:${FONT};font-size:13.5px;line-height:21px;color:#fff;text-align:justify;">${nl2br(s.description)}</p>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="border-top:1px solid #333; font-size:0;line-height:0;padding-top:16px;">&nbsp;</td></tr></table>
-    <div style="text-align:center;margin-top:14px;">
-      <div style="font-family:${FONT};font-size:13px;font-weight:bold;letter-spacing:.6px;color:#fff;margin-bottom:8px;">CONTACT</div>
+
+  const divider = showDivider
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:${SPACE.md}px;"><tr><td style="border-top:1px solid ${t.divider};font-size:0;line-height:0;">&nbsp;</td></tr></table>`
+    : '';
+
+  const phones =
+    showPhones && settings.phones.length
+      ? settings.phones
+          .map(
+            (p) =>
+              `<div style="font-family:${FONT};font-size:${TYPE.small.size}px;font-weight:bold;line-height:24px;color:${t.text};">${esc(
+                p.label
+              )} : ${esc(p.number)}</div>`
+          )
+          .join('')
+      : '';
+
+  // Optional CTA button inside the contact area — reference uses a phone pill.
+  const ctaBtn =
+    s.showCta && s.ctaText
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:${SPACE.sm}px auto 0;"><tr><td style="background:${t.accent};border-radius:${RADIUS.pill}px;">
+          <a href="${esc(s.ctaUrl || '#')}" target="_blank" style="display:inline-block;padding:12px 26px;font-family:${FONT};font-size:${TYPE.small.size}px;font-weight:bold;color:${t.accentText};text-decoration:none;">${esc(
+          s.ctaText
+        )}</a>
+        </td></tr></table>`
+      : '';
+
+  const email =
+    showEmail && settings.email
+      ? `<div style="margin-top:${SPACE.sm}px;font-family:${FONT};font-size:${TYPE.small.size}px;line-height:20px;color:${t.text};"><b>EMAIL ID:</b> <a href="mailto:${esc(
+          settings.email
+        )}" style="color:${t.text};font-weight:bold;text-decoration:none;">${esc(settings.email)}</a></div>`
+      : '';
+
+  const contact =
+    showContact && (phones || email || ctaBtn)
+      ? `<div style="text-align:center;margin-top:${SPACE.md}px;">
+      ${
+        s.contactLabel !== ''
+          ? `<div style="font-family:${FONT};font-size:${TYPE.eyebrow.size}px;font-weight:bold;letter-spacing:1px;color:${t.heading};margin-bottom:${SPACE.xs}px;">${esc(
+              (s.contactLabel || 'CONTACT').toUpperCase()
+            )}</div>`
+          : ''
+      }
       ${phones}
-      <div style="margin-top:8px;font-family:${FONT};font-size:13.5px;line-height:20px;color:#fff;"><b>EMAIL ID:</b> <a href="mailto:${esc(
-    settings.email
-  )}" style="color:#fff;font-weight:bold;text-decoration:none;">${esc(settings.email)}</a></div>
-    </div>
-  </td></tr></table>`;
+      ${ctaBtn}
+      ${email}
+    </div>`
+      : '';
+
+  return `${headRow}${description}${divider}${contact}`;
 }
 
 // ===========================================================================
@@ -753,31 +949,135 @@ function renderImageBanner(s: ImageBannerSection, resolve: ImageResolver): strin
   </table>`;
 }
 
+/**
+ * Footer block — the static page footer promoted to a real, reusable section
+ * so it can be themed, reordered and edited like anything else. Offices,
+ * social row, legal line and unsubscribe are each individually toggleable.
+ */
+function renderFooter(s: FooterSection, settings: GlobalSettings, resolve: ImageResolver, t: ThemeTokens): string {
+  const offices = s.showOffices !== false && settings.offices.length
+    ? settings.offices
+        .map(
+          (o, i) =>
+            `<td width="${Math.floor(100 / settings.offices.length)}%" valign="top" align="left" class="stack ${
+              i === 0 ? 'addr-first' : 'addr-rest'
+            }"><div style="font-family:${FONT};font-size:${TYPE.caption.size}px;font-weight:bold;letter-spacing:.4px;color:${t.heading};margin-bottom:${SPACE.xs}px;text-align:left;">${esc(
+              o.label.toUpperCase()
+            )}</div><div style="font-family:${FONT};font-size:${TYPE.caption.size - 0.5}px;line-height:19px;color:${t.text};text-align:left;">${nl2br(
+              o.address
+            )}</div></td>`
+        )
+        .join('')
+    : '';
+
+  const officeRow = offices
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>${offices}</tr></table>`
+    : '';
+
+  const rule = () =>
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:${SPACE.md}px 0;"><tr><td style="border-top:1px solid ${t.divider};font-size:0;line-height:0;">&nbsp;</td></tr></table>`;
+
+  const socialLinks =
+    s.showSocial !== false && settings.social.length
+      ? `<div style="font-family:${FONT};font-size:${TYPE.caption.size}px;font-weight:bold;color:${t.heading};margin-bottom:${SPACE.xs + 2}px;text-align:center;">${esc(
+          (s.socialLabel || 'FIND US ON').toUpperCase()
+        )}</div>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center"><tr>${settings.social
+        .map((x) => `<td style="padding:0 6px;">${socialBadge(x.platform, x.url, settings, resolve)}</td>`)
+        .join('')}</tr></table>`
+      : '';
+
+  const contactBits: string[] = [];
+  if (s.showWebsite && settings.websiteUrl)
+    contactBits.push(
+      `<a href="${esc(settings.websiteUrl)}" style="color:${t.text};text-decoration:none;font-weight:bold;">${esc(
+        settings.websiteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
+      )}</a>`
+    );
+  if (s.showEmail && settings.email)
+    contactBits.push(`<a href="mailto:${esc(settings.email)}" style="color:${t.text};text-decoration:none;">${esc(settings.email)}</a>`);
+  if (s.showPhone && settings.phones[0])
+    contactBits.push(`<span style="color:${t.text};">${esc(settings.phones[0].number)}</span>`);
+
+  const contactLine = contactBits.length
+    ? `<div style="margin-top:${SPACE.sm}px;font-family:${FONT};font-size:${TYPE.caption.size}px;line-height:18px;color:${t.text};text-align:center;">${contactBits.join(
+        ' &nbsp;·&nbsp; '
+      )}</div>`
+    : '';
+
+  const legal = s.showLegal !== false && settings.legalText
+    ? `<div style="margin-top:${SPACE.sm}px;font-family:${FONT};font-size:${TYPE.caption.size}px;line-height:18px;color:${t.text};text-align:center;">${esc(
+        settings.legalText
+      )}</div>`
+    : '';
+
+  const disclaimer = s.disclaimer
+    ? `<div style="margin-top:${SPACE.xs}px;font-family:${FONT};font-size:${TYPE.micro.size}px;line-height:16px;color:${t.muted};text-align:center;">${nl2br(
+        s.disclaimer
+      )}</div>`
+    : '';
+
+  const unsubscribe = s.showUnsubscribe !== false
+    ? `<div style="margin-top:${SPACE.sm}px;text-align:center;"><a href="${esc(
+        s.unsubscribeUrl || '#'
+      )}" style="font-family:${FONT};font-size:${TYPE.caption.size}px;color:${t.text};text-decoration:underline;">${esc(
+        s.unsubscribeText || 'Unsubscribe'
+      )}</a></div>`
+    : '';
+
+  const parts = [officeRow, socialLinks ? rule() + socialLinks : '', (legal || disclaimer || contactLine || unsubscribe) ? rule() : '', contactLine, legal, disclaimer, unsubscribe];
+  return parts.filter(Boolean).join('');
+}
+
+// ---------------------------------------------------------------------------
+// Hero layout system
+// ---------------------------------------------------------------------------
+
+/** A coloured strip above or below the hero body. */
+function heroStrip(text: string, bg: string, fg: string, align: string): string {
+  if (!text) return '';
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${bg};"><tr><td align="${align}" style="padding:10px 28px;font-family:${FONT};font-size:${TYPE.micro.size}px;font-weight:700;letter-spacing:1.2px;color:${fg};">${esc(
+    text.toUpperCase()
+  )}</td></tr></table>`;
+}
+
+function heroPill(text: string, bg: string, fg: string, align: string, marginCss: string, radius: number): string {
+  if (!text) return '';
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="${align}" style="${marginCss}"><tr><td style="background:${bg};border-radius:${radius}px;padding:8px 18px;font-family:${FONT};font-size:${TYPE.micro.size}px;font-weight:700;letter-spacing:1.1px;color:${fg};text-align:center;">${esc(
+    text.toUpperCase()
+  )}</td></tr></table>`;
+}
+
 // ---------------------------------------------------------------------------
 // Section dispatch
 // ---------------------------------------------------------------------------
 
 /** The block's own content, before the shared style / boxes / buttons wrapper. */
-function renderSectionInner(section: Section, settings: GlobalSettings, resolve: ImageResolver): string {
+function renderSectionInner(section: Section, settings: GlobalSettings, resolve: ImageResolver, t: ThemeTokens): string {
+  // If the shared wrapper already paints a surface with padding, the block
+  // must not draw a second card inside it.
+  const ownCard = !wrapperPaintsCard(styleForType(section.type, section.style));
   switch (section.type) {
     case 'hero':
-      return renderHero(section);
+      return renderHero(section, settings, resolve);
     case 'content':
-      return renderContent(section);
+      return renderContent(section, t, ownCard);
     case 'infoCard':
-      return renderInfoCard(section);
+      return renderInfoCard(section, t, ownCard);
     case 'mythFact':
-      return renderMythFact(section);
+      return renderMythFact(section, t, ownCard);
     case 'image':
       return renderImage(section, resolve);
     case 'quote':
       return renderQuote(section);
     case 'cta':
-      return renderCTA(section);
+      return renderCTA(section, t, ownCard);
     case 'stats':
-      return renderStats(section);
+      return renderStats(section, t, ownCard);
     case 'about':
-      return renderAbout(section, settings, resolve);
+      return renderAbout(section, settings, resolve, t);
+    case 'footer':
+      return renderFooter(section, settings, resolve, t);
     case 'textBlock':
       return renderTextBlock(section);
     case 'boxGroup':
@@ -817,8 +1117,11 @@ function renderSectionInner(section: Section, settings: GlobalSettings, resolve:
  */
 function renderSection(section: Section, settings: GlobalSettings, resolve: ImageResolver): string {
   if (!section.visible) return '';
-  const inner = renderSectionInner(section, settings, resolve);
-  const extras = renderBoxes(section.boxes) + renderButtonGroup(section.buttons);
+  // One token set drives the block's own content, its boxes and its buttons,
+  // so changing Theme recolours all three consistently.
+  const t = tokensFor(section.type, section.style);
+  const inner = renderSectionInner(section, settings, resolve, t);
+  const extras = renderBoxes(section.boxes, t) + renderButtonGroup(section.buttons, t);
   if (!inner && !extras) return '';
   return wrapBlock(inner + extras, styleForType(section.type, section.style));
 }
@@ -904,6 +1207,26 @@ export function generateHTML(newsletter: Newsletter, settings: GlobalSettings, r
     .map((s) => `<td style="padding-right:12px;">${socialBadge(s.platform, s.url, settings, resolve)}</td>`)
     .join('');
 
+  // The footer is now a real, editable block. Newsletters that contain a
+  // `footer` section render that instead; anything saved before the block
+  // existed keeps this built-in footer so it does not silently lose it.
+  const hasFooterBlock = newsletter.sections.some((x) => x.type === 'footer' && x.visible);
+  const builtInFooter = hasFooterBlock
+    ? ''
+    : `<tr><td align="center" style="padding:22px 28px 30px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#FFDA4B;border-radius:12px;">
+            <tr><td style="padding:24px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>${offices}</tr></table>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:15px;margin-bottom:16px;"><tr><td style="border-top:1px solid rgba(0,0,0,0.15);font-size:0;line-height:0;">&nbsp;</td></tr></table>
+              <div style="font-family:${FONT};font-size:13px;font-weight:bold;color:#111111;margin-bottom:10px;text-align:center;">FIND US ON</div>
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center"><tr>${socialLinks}</tr></table>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:16px;"><tr><td style="border-top:1px solid rgba(0,0,0,0.15);font-size:0;line-height:0;">&nbsp;</td></tr></table>
+              <div style="margin-top:16px;font-family:${FONT};font-size:12px;line-height:18px;color:#111111;text-align:center;">${esc(settings.legalText)}</div>
+              <div style="margin-top:12px;text-align:center;"><a href="#" style="font-family:${FONT};font-size:12px;color:#111111;text-decoration:underline;">Unsubscribe</a></div>
+            </td></tr>
+          </table>
+        </td></tr>`;
+
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
@@ -940,19 +1263,7 @@ export function generateHTML(newsletter: Newsletter, settings: GlobalSettings, r
 
         ${sectionsHtml}
 
-        <tr><td align="center" style="padding:22px 28px 30px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#FFDA4B;border-radius:12px;">
-            <tr><td style="padding:24px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>${offices}</tr></table>
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:15px;margin-bottom:16px;"><tr><td style="border-top:1px solid rgba(0,0,0,0.15);font-size:0;line-height:0;">&nbsp;</td></tr></table>
-              <div style="font-family:${FONT};font-size:13px;font-weight:bold;color:#111111;margin-bottom:10px;text-align:center;">FIND US ON</div>
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center"><tr>${socialLinks}</tr></table>
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:16px;"><tr><td style="border-top:1px solid rgba(0,0,0,0.15);font-size:0;line-height:0;">&nbsp;</td></tr></table>
-              <div style="margin-top:16px;font-family:${FONT};font-size:12px;line-height:18px;color:#111111;text-align:center;">${esc(settings.legalText)}</div>
-              <div style="margin-top:12px;text-align:center;"><a href="#" style="font-family:${FONT};font-size:12px;color:#111111;text-decoration:underline;">Unsubscribe</a></div>
-            </td></tr>
-          </table>
-        </td></tr>
+        ${builtInFooter}
 
       </table>
     </td></tr>

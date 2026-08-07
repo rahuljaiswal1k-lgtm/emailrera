@@ -32,7 +32,8 @@ export type SectionType =
   | 'gallery'
   | 'divider'
   | 'ctaBanner'
-  | 'imageBanner';
+  | 'imageBanner'
+  | 'footer';
 
 export interface BaseSection {
   id: string;
@@ -57,6 +58,16 @@ export interface BaseSection {
 }
 
 /** Section Type 1 — Hero Section */
+export type HeroLayout =
+  | 'classic'
+  | 'stripBanner'
+  | 'imageSide'
+  | 'imageAbove'
+  | 'imageBelow'
+  | 'minimal'
+  | 'dark'
+  | 'editorial';
+
 export interface HeroSection extends BaseSection {
   type: 'hero';
   title: string;
@@ -64,10 +75,63 @@ export interface HeroSection extends BaseSection {
   showSubtitle: boolean;
   backgroundColor: string;
   textAlign: 'left' | 'center' | 'right';
-  /** Small dark pill above the headline, e.g. "IMPORTANT UPDATE". Optional. */
+
+  // --- extended hero system (all optional: old heroes keep working) --------
+  heroLayout?: HeroLayout;
+  /** Small pill above the headline, e.g. "IMPORTANT UPDATE". */
   badge?: string;
-  /** Dark strip below the headline, e.g. "KEEP READING TO …". Optional. */
+  /** Strip below the headline, e.g. "KEEP READING TO …". */
   noticeText?: string;
+  description?: string;
+  headingColor?: string;
+  textColorOverride?: string;
+  /** Colour of the badge / notice pills and the accent divider. */
+  stripColor?: string;
+  stripTextColor?: string;
+
+  showTopStrip?: boolean;
+  topStripText?: string;
+  topStripColor?: string;
+  topStripTextColor?: string;
+
+  showBottomStrip?: boolean;
+  bottomStripText?: string;
+  bottomStripColor?: string;
+  bottomStripTextColor?: string;
+
+  showLogo?: boolean;
+  logoWidth?: number;
+
+  imageId?: string | null;
+  showDivider?: boolean;
+
+  ctaText?: string;
+  ctaUrl?: string;
+  secondaryCtaText?: string;
+  secondaryCtaUrl?: string;
+
+  heroPadding?: number;
+  borderRadius?: number;
+}
+
+/**
+ * Footer block — the page footer promoted to a real section so it can be
+ * themed, reordered and edited like any other block. Content comes from
+ * Global Settings; this block controls which parts appear and how.
+ */
+export interface FooterSection extends BaseSection {
+  type: 'footer';
+  showOffices?: boolean;
+  showSocial?: boolean;
+  socialLabel?: string;
+  showLegal?: boolean;
+  disclaimer?: string;
+  showUnsubscribe?: boolean;
+  unsubscribeText?: string;
+  unsubscribeUrl?: string;
+  showWebsite?: boolean;
+  showEmail?: boolean;
+  showPhone?: boolean;
 }
 
 /** Section Type 2 — Standard Content Section */
@@ -163,6 +227,17 @@ export interface AboutSection extends BaseSection {
   type: 'about';
   heading: string;
   description: string;
+  // --- extended controls (all optional; undefined means "show") -----------
+  showLogo?: boolean;
+  logoWidth?: number;
+  showDivider?: boolean;
+  showContact?: boolean;
+  contactLabel?: string;
+  showPhones?: boolean;
+  showEmail?: boolean;
+  showCta?: boolean;
+  ctaText?: string;
+  ctaUrl?: string;
 }
 
 // ============================================================================
@@ -333,7 +408,8 @@ export type Section =
   | GallerySection
   | DividerSection
   | CtaBannerSection
-  | ImageBannerSection;
+  | ImageBannerSection
+  | FooterSection;
 
 // ============================================================================
 // Newsletter (a saved project)

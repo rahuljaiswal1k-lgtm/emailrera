@@ -96,19 +96,86 @@ export function styleForType(type: string, style?: Partial<BlockStyle>): BlockSt
   return DEFAULT_STYLE_BY_TYPE[type] ?? DEFAULT_BLOCK_STYLE;
 }
 
+/**
+ * The full token set a theme resolves to. Every renderer reads these instead of
+ * hardcoding hex values — that is what makes switching a section's theme
+ * actually recolour its heading, body, borders, icons, badges, boxes and
+ * buttons rather than just its background.
+ */
 export interface ThemeTokens {
+  /** Surface the block itself paints. */
   bg: string;
+  /** Nested surface — cards inside the block. */
+  surface: string;
+  /** Secondary nested surface, for zebra rows and subtle panels. */
+  surfaceAlt: string;
+  heading: string;
   text: string;
   muted: string;
   border: string;
+  divider: string;
   accent: string;
+  /** Readable text on top of `accent`. */
+  accentText: string;
+  iconBg: string;
+  iconFg: string;
+  badgeBg: string;
+  badgeText: string;
+  boxBg: string;
+  boxBorder: string;
+  boxText: string;
+  /**
+   * A always-opaque surface for cards drawn *inside* a block. `bg` becomes
+   * "transparent" for plain/minimal/outline variants, so nested cards must not
+   * use it or they render white on a dark theme.
+   */
+  cardBg: string;
+  buttonBg: string;
+  buttonText: string;
+  buttonBorder: string;
 }
 
 export const THEME_TOKENS: Record<BlockTheme, ThemeTokens> = {
-  light: { bg: '#FFFFFF', text: '#1A1A1A', muted: '#666666', border: '#D9DDE3', accent: '#FFDA4B' },
-  gray: { bg: '#F3F4F6', text: '#1A1A1A', muted: '#555555', border: '#E3E6EC', accent: '#1D1F1F' },
-  dark: { bg: '#1D1F1F', text: '#FFFFFF', muted: '#BFC3C3', border: '#333333', accent: '#FFDA4B' },
-  yellow: { bg: '#FFDA4B', text: '#1D1F1F', muted: '#5A5230', border: '#E9C43C', accent: '#1D1F1F' },
+  light: {
+    bg: '#FFFFFF', surface: '#F7F8FA', surfaceAlt: '#F3F4F6',
+    heading: '#111111', text: '#333333', muted: '#6B7280',
+    border: '#E3E6EC', divider: '#EDEFF3',
+    accent: '#FFDA4B', accentText: '#1D1F1F',
+    iconBg: '#1D1F1F', iconFg: '#FFDA4B',
+    badgeBg: '#1D1F1F', badgeText: '#FFFFFF',
+    boxBg: '#FFFBEC', boxBorder: '#F2E0A8', boxText: '#4A421F',
+    buttonBg: '#FFDA4B', buttonText: '#1D1F1F', buttonBorder: '#FFDA4B', cardBg: '#FFFFFF',
+  },
+  gray: {
+    bg: '#F3F4F6', surface: '#FFFFFF', surfaceAlt: '#EDEFF3',
+    heading: '#111111', text: '#333333', muted: '#5F6672',
+    border: '#DDE1E8', divider: '#E3E6EC',
+    accent: '#1D1F1F', accentText: '#FFFFFF',
+    iconBg: '#1D1F1F', iconFg: '#FFDA4B',
+    badgeBg: '#1D1F1F', badgeText: '#FFFFFF',
+    boxBg: '#FFFFFF', boxBorder: '#DDE1E8', boxText: '#333333',
+    buttonBg: '#1D1F1F', buttonText: '#FFFFFF', buttonBorder: '#1D1F1F', cardBg: '#FFFFFF',
+  },
+  dark: {
+    bg: '#1D1F1F', surface: '#2A2C2C', surfaceAlt: '#242626',
+    heading: '#FFFFFF', text: '#E6E8E8', muted: '#A8ADAD',
+    border: '#3A3D3D', divider: '#333636',
+    accent: '#FFDA4B', accentText: '#1D1F1F',
+    iconBg: '#FFDA4B', iconFg: '#1D1F1F',
+    badgeBg: '#FFDA4B', badgeText: '#1D1F1F',
+    boxBg: '#2A2C2C', boxBorder: '#3A3D3D', boxText: '#E6E8E8',
+    buttonBg: '#FFDA4B', buttonText: '#1D1F1F', buttonBorder: '#FFDA4B', cardBg: '#1D1F1F',
+  },
+  yellow: {
+    bg: '#FFDA4B', surface: '#FFE787', surfaceAlt: '#FFF2C2',
+    heading: '#1D1F1F', text: '#3A3520', muted: '#6B6234',
+    border: '#E9C43C', divider: '#EDCE55',
+    accent: '#1D1F1F', accentText: '#FFDA4B',
+    iconBg: '#1D1F1F', iconFg: '#FFDA4B',
+    badgeBg: '#1D1F1F', badgeText: '#FFFFFF',
+    boxBg: '#FFF2C2', boxBorder: '#E9C43C', boxText: '#3A3520',
+    buttonBg: '#1D1F1F', buttonText: '#FFFFFF', buttonBorder: '#1D1F1F', cardBg: '#FFF2C2',
+  },
 };
 
 export const SHADOW_CSS: Record<ShadowSize, string> = {
@@ -123,55 +190,102 @@ export function resolveStyle(style?: Partial<BlockStyle>): BlockStyle {
 }
 
 /**
- * Turn theme + variant + explicit overrides into the concrete colors used for
- * rendering. Explicit values always win over the variant/theme derivation.
+ * Turn theme + variant + explicit overrides into the concrete token set used
+ * for rendering.
+ *
+ * Inheritance rules:
+ *  - the theme supplies every token;
+ *  - the variant adjusts the surface and border treatment;
+ *  - explicit `backgroundColor` / `textColor` / `borderColor` overrides win,
+ *    and a custom background re-derives the readable foreground so headings,
+ *    body, icons and badges stay legible instead of going invisible.
+ *
+ * Only explicit overrides break inheritance — everything else cascades.
  */
 export function computeTokens(style: BlockStyle): ThemeTokens & { bgCss: string; borderCss: string } {
   const base = THEME_TOKENS[style.theme] ?? THEME_TOKENS.light;
+  const t: ThemeTokens = { ...base };
 
-  let bg = base.bg;
-  let border = base.border;
   let borderWidth = style.borderWidth;
 
   switch (style.variant) {
     case 'plain':
-      bg = 'transparent';
-      borderWidth = style.borderWidth;
+      t.bg = 'transparent';
       break;
     case 'card':
       borderWidth = style.borderWidth || 1;
       break;
     case 'outline':
-      bg = 'transparent';
+      t.bg = 'transparent';
       borderWidth = style.borderWidth || 1;
-      border = style.borderColor || base.accent;
+      t.border = base.accent;
       break;
     case 'filled':
-      borderWidth = 0;
-      break;
     case 'elevated':
       borderWidth = 0;
       break;
     case 'minimal':
-      bg = 'transparent';
+      t.bg = 'transparent';
       borderWidth = 0;
       break;
   }
 
-  if (style.backgroundColor) bg = style.backgroundColor;
-  if (style.borderColor) border = style.borderColor;
+  // A custom background must recolour everything that sits on it, otherwise
+  // switching to a dark custom colour leaves black text on black.
+  if (style.backgroundColor) {
+    t.bg = style.backgroundColor;
+    const onDark = isDarkHex(style.backgroundColor);
+    t.heading = onDark ? '#FFFFFF' : '#111111';
+    t.text = onDark ? '#E6E8E8' : '#333333';
+    t.muted = onDark ? '#A8ADAD' : '#6B7280';
+    t.border = onDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.10)';
+    t.divider = t.border;
+    t.surface = onDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
+    t.surfaceAlt = t.surface;
+    t.boxBg = t.surface;
+    t.boxBorder = t.border;
+    t.boxText = t.text;
+    t.iconBg = onDark ? '#FFDA4B' : '#1D1F1F';
+    t.iconFg = onDark ? '#1D1F1F' : '#FFDA4B';
+    t.badgeBg = onDark ? '#FFDA4B' : '#1D1F1F';
+    t.badgeText = onDark ? '#1D1F1F' : '#FFFFFF';
+    t.cardBg = style.backgroundColor;
+  }
 
-  const text = style.textColor || base.text;
+  if (style.borderColor) {
+    t.border = style.borderColor;
+    t.divider = style.borderColor;
+  }
+
+  // An explicit text colour cascades to headings and muted text too, so the
+  // whole block stays coherent rather than half-recoloured.
+  if (style.textColor) {
+    t.text = style.textColor;
+    t.heading = style.textColor;
+    t.muted = style.textColor;
+    t.boxText = style.textColor;
+  }
 
   return {
-    bg,
-    text,
-    muted: base.muted,
-    border,
-    accent: base.accent,
-    bgCss: bg === 'transparent' ? '' : `background:${bg};`,
-    borderCss: borderWidth > 0 ? `border:${borderWidth}px solid ${border};` : '',
+    ...t,
+    bgCss: t.bg === 'transparent' ? '' : `background:${t.bg};`,
+    borderCss: borderWidth > 0 ? `border:${borderWidth}px solid ${t.border};` : '',
   };
+}
+
+/** Local copy so blockStyle stays dependency-free. */
+function isDarkHex(hex: string): boolean {
+  const h = (hex || '').replace('#', '');
+  if (h.length < 6) return false;
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.55;
+}
+
+/** Convenience: resolve a section's tokens in one call. */
+export function tokensFor(type: string, style?: Partial<BlockStyle>): ThemeTokens {
+  return computeTokens(styleForType(type, style));
 }
 
 /** Vertical spacer used between blocks and around dividers. */

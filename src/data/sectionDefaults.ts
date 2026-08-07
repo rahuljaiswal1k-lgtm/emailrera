@@ -24,8 +24,10 @@ import type {
   DividerSection,
   CtaBannerSection,
   ImageBannerSection,
+  FooterSection,
 } from '../types/newsletter';
 import { DEFAULT_BLOCK_STYLE, CARD_BLOCK_STYLE, FULL_BLEED_BLOCK_STYLE } from '../lib/blockStyle';
+import { RADIUS } from '../lib/designTokens';
 import { createButton } from '../lib/blockButtons';
 import { createBox } from '../lib/blockBoxes';
 
@@ -51,6 +53,7 @@ export const SECTION_LABELS: Record<SectionType, string> = {
   divider: 'Divider / Spacer',
   ctaBanner: 'CTA Banner',
   imageBanner: 'Image Banner',
+  footer: 'Footer',
 };
 
 export type BlockCategory = 'Basics' | 'Content' | 'Callouts' | 'Media' | 'Data' | 'Conversion' | 'Layout';
@@ -106,7 +109,8 @@ export const BLOCK_CATALOG: BlockCatalogEntry[] = [
   { type: 'cta', category: 'Conversion', description: 'Button that drives an action', keywords: ['call to action', 'button'] },
   { type: 'ctaBanner', category: 'Conversion', description: 'Full-width conversion banner with buttons', keywords: ['call to action', 'banner', 'promo'] },
 
-  { type: 'about', category: 'Layout', description: 'About RERA Easy + contact box', keywords: ['footer', 'contact', 'company'] },
+  { type: 'about', category: 'Layout', description: 'About RERA Easy + contact box', keywords: ['contact', 'company', 'brand'] },
+  { type: 'footer', category: 'Layout', description: 'Offices, social row, legal line and unsubscribe', keywords: ['footer', 'address', 'office', 'social', 'legal', 'unsubscribe', 'copyright'] },
 ];
 
 /** Kept for backwards compatibility with anything importing the flat order. */
@@ -132,6 +136,30 @@ export function createSection(type: SectionType): Section {
         textAlign: 'center',
         badge: '',
         noticeText: '',
+        heroLayout: 'classic',
+        description: '',
+        headingColor: '',
+        textColorOverride: '',
+        stripColor: '',
+        stripTextColor: '',
+        showTopStrip: false,
+        topStripText: '',
+        topStripColor: '#101010',
+        topStripTextColor: '#FFFFFF',
+        showBottomStrip: false,
+        bottomStripText: '',
+        bottomStripColor: '#101010',
+        bottomStripTextColor: '#FFFFFF',
+        showLogo: false,
+        logoWidth: 120,
+        imageId: null,
+        showDivider: false,
+        ctaText: '',
+        ctaUrl: '',
+        secondaryCtaText: '',
+        secondaryCtaUrl: '',
+        heroPadding: 34,
+        borderRadius: RADIUS.lg,
       } satisfies HeroSection;
 
     case 'content':
@@ -229,9 +257,20 @@ export function createSection(type: SectionType): Section {
         id,
         type,
         visible: true,
+        style: { ...CARD_BLOCK_STYLE, theme: 'dark', variant: 'filled', borderRadius: RADIUS.md },
         heading: 'ABOUT',
         description:
           'RERA Easy is a specialized MahaRERA compliance and regulatory execution partner that helps developers manage project registrations, quarterly compliances, legal documentation, certifications, audits, and ongoing regulatory obligations under one roof.',
+        showLogo: true,
+        logoWidth: 96,
+        showDivider: true,
+        showContact: true,
+        contactLabel: 'CONTACT',
+        showPhones: true,
+        showEmail: true,
+        showCta: false,
+        ctaText: 'Call Now',
+        ctaUrl: 'tel:+919136490809',
       } satisfies AboutSection;
 
     // ---------------------------------------------------------------------
@@ -413,5 +452,24 @@ export function createSection(type: SectionType): Section {
         borderRadius: 14,
         textPosition: 'bottom',
       } satisfies ImageBannerSection;
+
+    case 'footer':
+      return {
+        id,
+        type,
+        visible: true,
+        style: { ...CARD_BLOCK_STYLE, theme: 'yellow', variant: 'filled', borderRadius: RADIUS.md, padding: 26 },
+        showOffices: true,
+        showSocial: true,
+        socialLabel: 'FIND US ON',
+        showLegal: true,
+        disclaimer: '',
+        showUnsubscribe: true,
+        unsubscribeText: 'Unsubscribe',
+        unsubscribeUrl: '#',
+        showWebsite: false,
+        showEmail: false,
+        showPhone: false,
+      } satisfies FooterSection;
   }
 }
