@@ -18,6 +18,28 @@ export function nl2br(str: string): string {
   return esc(str).replace(/\n/g, '<br>');
 }
 
+/**
+ * Escapes text but keeps a small whitelist of inline formatting tags, so text
+ * edited in the canvas can carry bold / italic / underline / highlight without
+ * ever letting arbitrary HTML through. Newlines become <br>.
+ */
+const INLINE_TAGS = 'b|i|u|s|strong|em|mark|br';
+
+export function rich(str: string): string {
+  return esc(str ?? '')
+    .replace(new RegExp(`&lt;(/?(?:${INLINE_TAGS}))&gt;`, 'gi'), '<$1>')
+    .replace(/&lt;br\s*\/?&gt;/gi, '<br>')
+    .replace(/\n/g, '<br>');
+}
+
+/** Strip everything except the inline whitelist — used when saving canvas edits. */
+export function sanitizeRich(html: string): string {
+  return (html ?? '')
+    .replace(/<(?!\/?(?:b|i|u|s|strong|em|mark|br)\b)[^>]*>/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /** Relative luminance test used to pick readable text on a colored surface. */
 export function isDark(hex: string): boolean {
   const h = (hex || '').replace('#', '');

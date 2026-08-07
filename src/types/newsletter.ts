@@ -416,6 +416,12 @@ export type Section =
 // ============================================================================
 
 export interface Newsletter {
+  /**
+   * Hand-edited HTML from Code mode. When set, the preview and the export use
+   * it verbatim instead of rendering the sections. The sections are kept so the
+   * override can be reverted without losing work.
+   */
+  htmlOverride?: string | null;
   id: string;
   title: string;
   subtitle: string;

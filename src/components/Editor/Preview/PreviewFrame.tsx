@@ -1,8 +1,11 @@
 import { useMemo, useEffect, useRef, useState } from 'react';
-import { Monitor, Smartphone } from 'lucide-react';
+import { Monitor, Smartphone, Eye, Code2 } from 'lucide-react';
 import { useNewsletterStore } from '../../../store/useNewsletterStore';
 import { generateHTML, previewResolver } from '../../../lib/htmlGenerator';
+import { sanitizeRich } from '../../../lib/htmlEscape';
+import { CodeView } from './CodeView';
 import type { CanvasMessage } from '../../../lib/canvasEditor';
+import { styleForType } from '../../../lib/blockStyle';
 
 /**
  * Live preview — and the primary editing surface.
@@ -23,17 +26,32 @@ export function PreviewFrame() {
   const duplicateSection = useNewsletterStore((s) => s.duplicateSection);
   const removeSection = useNewsletterStore((s) => s.removeSection);
   const setSections = useNewsletterStore((s) => s.setSections);
+  const updateSectionField = useNewsletterStore((s) => s.updateSectionField);
+  const updateSection = useNewsletterStore((s) => s.updateSection);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
+  const [mode, setMode] = useState<'design' | 'code'>('design');
 
   const html = useMemo(() => {
     if (!current) return '';
-    return generateHTML(current, globalSettings, previewResolver(images), {
-      interactive: true,
-      selectedId: selectedSectionId,
-    });
-  }, [current, images, globalSettings, selectedSectionId]);
+    // Custom HTML from Code mode wins, and is shown without the editing layer
+    // since there are no addressable sections in hand-written markup.
+    if (current.htmlOverride) return current.htmlOverride;
+    // NOTE: selectedSectionId is deliberately NOT a dependency. Regenerating
+    // the srcDoc reloads the iframe, which would destroy any inline edit in
+    // progress the moment the click selected the section. Selection is pushed
+    // into the frame as a message instead.
+    return generateHTML(current, globalSettings, previewResolver(images), { interactive: true });
+  }, [current, images, globalSettings]);
+
+  // Push selection into the frame without re-rendering it.
+  useEffect(() => {
+    iframeRef.current?.contentWindow?.postMessage(
+      { source: 'nl-editor', type: 'setSelected', id: selectedSectionId },
+      '*'
+    );
+  }, [selectedSectionId, html]);
 
   // Messages from the in-canvas editing layer.
   useEffect(() => {
@@ -47,6 +65,23 @@ export function PreviewFrame() {
         return;
       }
       if (msg.type === 'select') return selectSection(msg.id);
+
+      // Inline text edited on the canvas. Sanitised to the inline whitelist so
+      // contenteditable can never inject arbitrary markup into the newsletter.
+      if (msg.type === 'edit') return updateSectionField(msg.id, msg.path, sanitizeRich(msg.value));
+
+      // Formatting from the floating toolbar maps onto the block's BlockStyle.
+      if (msg.type === 'format') {
+        const sec = useNewsletterStore.getState().current?.sections.find((x) => x.id === msg.id);
+        if (!sec) return;
+        const style = { ...styleForType(sec.type, sec.style) };
+        if (msg.key === 'align') style.align = msg.value as typeof style.align;
+        else if (msg.key === 'fontFamily') style.fontFamily = msg.value;
+        else if (msg.key === 'fontScale') style.fontScale = msg.value ? Number(msg.value) : 1;
+        else if (msg.key === 'textColor') style.textColor = msg.value;
+        updateSection(msg.id, { style } as never);
+        return;
+      }
       if (msg.type === 'duplicate') return duplicateSection(msg.id);
       if (msg.type === 'delete') return removeSection(msg.id);
 
@@ -77,7 +112,7 @@ export function PreviewFrame() {
     }
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [selectSection, duplicateSection, removeSection, setSections]);
+  }, [selectSection, duplicateSection, removeSection, setSections, updateSectionField, updateSection]);
 
   if (!current) return null;
 
@@ -87,9 +122,27 @@ export function PreviewFrame() {
     <div className="flex-1 min-w-0 bg-[#E9EBEF] flex flex-col">
       <div className="flex items-center justify-center gap-3 py-2 border-b border-gray-200 bg-white">
         <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Live Preview</span>
-        <span className="text-[11px] text-gray-400 hidden lg:inline">
-          click a section to edit · drag to reorder
+        <span className="text-[11px] text-gray-400 hidden xl:inline">
+          click text to edit · drag to reorder
         </span>
+        <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
+          <button
+            onClick={() => setMode('design')}
+            className={`flex items-center gap-1 h-7 px-2.5 rounded-md text-[11px] font-semibold ${
+              mode === 'design' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            <Eye size={13} /> Design
+          </button>
+          <button
+            onClick={() => setMode('code')}
+            className={`flex items-center gap-1 h-7 px-2.5 rounded-md text-[11px] font-semibold ${
+              mode === 'code' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            <Code2 size={13} /> Code
+          </button>
+        </div>
         <div className="flex items-center gap-0.5 ml-2 bg-gray-100 rounded-lg p-0.5">
           <button
             onClick={() => setDevice('desktop')}
@@ -112,6 +165,9 @@ export function PreviewFrame() {
         </div>
       </div>
 
+      {mode === 'code' ? (
+        <CodeView />
+      ) : (
       <div className="flex-1 overflow-y-auto thin-scroll py-8 px-4">
         <iframe
           ref={iframeRef}
@@ -127,6 +183,7 @@ export function PreviewFrame() {
           }}
         />
       </div>
+      )}
     </div>
   );
 }

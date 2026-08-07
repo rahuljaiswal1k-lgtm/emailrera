@@ -47,7 +47,8 @@ export async function exportNewsletterZip(
     files.forEach((f) => imagesFolder.file(f.name, f.base64, { base64: true }));
   }
 
-  const html = generateHTML(newsletter, settings, exportResolver(filenameMap));
+  // Code-mode override ships verbatim; otherwise render from the sections.
+  const html = newsletter.htmlOverride ?? generateHTML(newsletter, settings, exportResolver(filenameMap));
   zip.file('index.html', html);
 
   // Embed a hidden metadata file so this exact newsletter.zip can be re-imported

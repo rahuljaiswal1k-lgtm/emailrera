@@ -10,7 +10,7 @@
 // ============================================================================
 
 import { nanoid } from './id';
-import { esc, nl2br, EMAIL_FONT } from './htmlEscape';
+import { esc, nl2br, rich, EMAIL_FONT } from './htmlEscape';
 import { getIcon } from '../data/icons';
 import type { ThemeTokens } from './blockStyle';
 
@@ -127,7 +127,10 @@ function themedPreset(preset: BoxPreset, kind: BoxKind, t?: ThemeTokens): BoxPre
   };
 }
 
-export function renderBox(box: ContainerBox, t?: ThemeTokens): string {
+export function renderBox(box: ContainerBox, t?: ThemeTokens, editPrefix?: string): string {
+  // When rendering the interactive preview, tag the box's own text so it can be
+  // edited directly on the canvas like any other field.
+  const ed = (f: string) => (editPrefix ? ` data-nl-edit="${editPrefix}.${f}"` : '');
   const preset = themedPreset(BOX_PRESETS[box.kind] ?? BOX_PRESETS.info, box.kind, t);
 
   // Layout helpers render no card at all.
@@ -162,13 +165,13 @@ export function renderBox(box: ContainerBox, t?: ThemeTokens): string {
   const leftRuleCss = preset.leftRule ? `border-left:4px solid ${preset.accent};` : '';
 
   const title = box.title
-    ? `<div style="font-family:${EMAIL_FONT};font-size:15px;font-weight:700;color:${color};margin-bottom:8px;">${esc(
+    ? `<div${ed('title')} style="font-family:${EMAIL_FONT};font-size:15px;font-weight:700;color:${color};margin-bottom:8px;">${rich(
         box.title
       )}</div>`
     : '';
 
   const text = box.text
-    ? `<p style="margin:0;font-family:${EMAIL_FONT};font-size:14.5px;line-height:23px;color:${color};">${nl2br(
+    ? `<p${ed('text')} style="margin:0;font-family:${EMAIL_FONT};font-size:14.5px;line-height:23px;color:${color};">${rich(
         box.text
       )}</p>`
     : '';
@@ -219,7 +222,7 @@ export function renderBox(box: ContainerBox, t?: ThemeTokens): string {
   </table>`;
 }
 
-export function renderBoxes(boxes: ContainerBox[] | undefined, t?: ThemeTokens): string {
+export function renderBoxes(boxes: ContainerBox[] | undefined, t?: ThemeTokens, interactive = false): string {
   if (!boxes || boxes.length === 0) return '';
-  return boxes.map((b) => renderBox(b, t)).join('');
+  return boxes.map((b, i) => renderBox(b, t, interactive ? `boxes.${i}` : undefined)).join('');
 }

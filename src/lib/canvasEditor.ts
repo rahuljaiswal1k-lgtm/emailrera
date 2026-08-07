@@ -22,7 +22,9 @@ export type CanvasMessage =
   | { source: 'nl-canvas'; type: 'duplicate'; id: string }
   | { source: 'nl-canvas'; type: 'delete'; id: string }
   | { source: 'nl-canvas'; type: 'reorder'; id: string; beforeId: string | null }
-  | { source: 'nl-canvas'; type: 'height'; height: number };
+  | { source: 'nl-canvas'; type: 'height'; height: number }
+  | { source: 'nl-canvas'; type: 'edit'; id: string; path: string; value: string }
+  | { source: 'nl-canvas'; type: 'format'; id: string; key: string; value: string };
 
 export const CANVAS_ATTR = 'data-nl-section';
 
@@ -69,6 +71,27 @@ export function canvasStyles(): string {
       box-shadow: 0 0 0 1px #1D1F1F;
     }
     body.nl-drag-active, body.nl-drag-active * { user-select: none !important; }
+
+    /* --- inline text editing --- */
+    [data-nl-edit] { outline: none; }
+    [data-nl-edit]:hover { box-shadow: inset 0 0 0 1px rgba(29,31,31,.18); border-radius: 3px; cursor: text; }
+    [data-nl-edit][contenteditable="true"] {
+      box-shadow: inset 0 0 0 2px #FFDA4B; border-radius: 3px; background: rgba(255,218,75,.10);
+    }
+
+    #nl-fmt {
+      position: fixed; z-index: 90; display: none; gap: 2px; align-items: center;
+      background: #1D1F1F; border-radius: 8px; padding: 4px; box-shadow: 0 6px 20px rgba(0,0,0,.28);
+    }
+    #nl-fmt.open { display: flex; }
+    #nl-fmt button, #nl-fmt select {
+      height: 26px; border: 0; background: transparent; color: #fff; border-radius: 5px;
+      font: 700 12px/1 Arial, sans-serif; cursor: pointer; padding: 0 7px;
+    }
+    #nl-fmt button:hover, #nl-fmt select:hover { background: rgba(255,255,255,.16); }
+    #nl-fmt select { background: #2A2C2C; font-weight: 400; max-width: 118px; }
+    #nl-fmt .sep { width: 1px; height: 16px; background: rgba(255,255,255,.22); margin: 0 3px; }
+    #nl-fmt input[type=color] { width: 26px; height: 22px; border: 0; background: none; padding: 0; cursor: pointer; }
   </style>`;
 }
 
@@ -191,13 +214,141 @@ export function canvasScript(): string {
     document.addEventListener('pointerup', endDrag);
     document.addEventListener('pointercancel', endDrag);
 
-    // --- init + height reporting ------------------------------------------
-    function init() {
-      sections().forEach(decorate);
-      var sel = document.documentElement.getAttribute('data-nl-selected');
+    // --- inline text editing ----------------------------------------------
+    var FONTS = [
+      ['', 'Default font'],
+      ['Arial,Helvetica,sans-serif', 'Arial'],
+      ['Georgia,serif', 'Georgia'],
+      ['\\'Times New Roman\\',Times,serif', 'Times New Roman'],
+      ['Verdana,Geneva,sans-serif', 'Verdana'],
+      ['Tahoma,Geneva,sans-serif', 'Tahoma'],
+      ['\\'Trebuchet MS\\',sans-serif', 'Trebuchet MS'],
+      ['\\'Courier New\\',monospace', 'Courier New']
+    ];
+    var editing = null, bar = null;
+
+    function buildBar() {
+      bar = document.createElement('div');
+      bar.id = 'nl-fmt';
+      var fontOpts = FONTS.map(function (f) { return '<option value="' + f[0] + '">' + f[1] + '</option>'; }).join('');
+      bar.innerHTML =
+        '<select data-fmt="font" title="Font family">' + fontOpts + '</select>' +
+        '<select data-fmt="size" title="Font size">' +
+          '<option value="">Size</option><option value="0.85">Small</option><option value="1">Normal</option>' +
+          '<option value="1.2">Large</option><option value="1.5">X-Large</option></select>' +
+        '<span class="sep"></span>' +
+        '<button data-cmd="bold" title="Bold"><b>B</b></button>' +
+        '<button data-cmd="italic" title="Italic"><i>I</i></button>' +
+        '<button data-cmd="underline" title="Underline"><u>U</u></button>' +
+        '<button data-cmd="mark" title="Highlight">&#9646;</button>' +
+        '<span class="sep"></span>' +
+        '<button data-align="left" title="Align left">&#8676;</button>' +
+        '<button data-align="center" title="Align center">&#8596;</button>' +
+        '<button data-align="right" title="Align right">&#8677;</button>' +
+        '<span class="sep"></span>' +
+        '<input type="color" data-fmt="colour" title="Text colour" value="#1D1F1F">';
+      document.body.appendChild(bar);
+
+      bar.addEventListener('mousedown', function (e) { e.preventDefault(); });
+
+      bar.addEventListener('click', function (e) {
+        var b = e.target.closest ? e.target.closest('button') : null;
+        if (!b || !editing) return;
+        var cmd = b.getAttribute('data-cmd');
+        var align = b.getAttribute('data-align');
+        if (cmd === 'mark') {
+          document.execCommand('hiliteColor', false, '#FFDA4B');
+        } else if (cmd) {
+          document.execCommand(cmd, false, null);
+        } else if (align) {
+          var host = editing.closest('[' + ATTR + ']');
+          if (host) post({ type: 'format', id: id(host), key: 'align', value: align });
+          return;
+        }
+        commit();
+      });
+
+      bar.addEventListener('change', function (e) {
+        var sel = e.target;
+        var host = editing && editing.closest('[' + ATTR + ']');
+        if (!host) return;
+        var kind = sel.getAttribute('data-fmt');
+        if (kind === 'font') post({ type: 'format', id: id(host), key: 'fontFamily', value: sel.value });
+        else if (kind === 'size') post({ type: 'format', id: id(host), key: 'fontScale', value: sel.value });
+        else if (kind === 'colour') post({ type: 'format', id: id(host), key: 'textColor', value: sel.value });
+      });
+    }
+
+    function placeBar(el) {
+      var r = el.getBoundingClientRect();
+      bar.classList.add('open');
+      var top = r.top - bar.offsetHeight - 8;
+      if (top < 4) top = r.bottom + 8;
+      bar.style.top = top + 'px';
+      bar.style.left = Math.max(6, Math.min(r.left, window.innerWidth - bar.offsetWidth - 6)) + 'px';
+    }
+
+    function commit() {
+      if (!editing) return;
+      var host = editing.closest('[' + ATTR + ']');
+      if (!host) return;
+      post({
+        type: 'edit',
+        id: id(host),
+        path: editing.getAttribute('data-nl-edit'),
+        value: editing.innerHTML
+      });
+    }
+
+    function stopEditing() {
+      if (!editing) return;
+      commit();
+      editing.removeAttribute('contenteditable');
+      editing = null;
+      if (bar) bar.classList.remove('open');
+    }
+
+    function startEditing(el) {
+      if (editing === el) return;
+      stopEditing();
+      editing = el;
+      el.setAttribute('contenteditable', 'true');
+      el.focus();
+      if (!bar) buildBar();
+      placeBar(el);
+    }
+
+    document.addEventListener('click', function (e) {
+      var f = e.target.closest ? e.target.closest('[data-nl-edit]') : null;
+      if (f) { e.stopPropagation(); startEditing(f); }
+      else if (!(e.target.closest && e.target.closest('#nl-fmt'))) stopEditing();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (!editing) return;
+      if (e.key === 'Escape') { e.preventDefault(); stopEditing(); }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); stopEditing(); }
+    });
+    document.addEventListener('scroll', function () { if (editing) placeBar(editing); }, true);
+
+    // --- selection pushed in from the editor -------------------------------
+    // Applied as a class change rather than a re-render, so selecting a section
+    // never reloads the frame and never interrupts an inline edit.
+    function applySelected(sel) {
       sections().forEach(function (s) {
         s.classList.toggle('nl-selected', !!sel && id(s) === sel);
       });
+    }
+    window.addEventListener('message', function (e) {
+      var m = e.data;
+      if (!m || m.source !== 'nl-editor') return;
+      if (m.type === 'setSelected') applySelected(m.id);
+    });
+
+    // --- init + height reporting ------------------------------------------
+    function init() {
+      sections().forEach(decorate);
+      applySelected(document.documentElement.getAttribute('data-nl-selected'));
       post({ type: 'height', height: document.documentElement.scrollHeight });
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

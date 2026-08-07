@@ -28,7 +28,7 @@ import type {
   HeroLayout,
 } from '../types/newsletter';
 import { getIcon } from '../data/icons';
-import { esc, nl2br, isDark, EMAIL_FONT } from './htmlEscape';
+import { esc, nl2br, rich, isDark, EMAIL_FONT } from './htmlEscape';
 import {
   resolveStyle,
   styleForType,
@@ -59,6 +59,18 @@ export interface GenerateOptions {
 }
 
 const FONT = EMAIL_FONT;
+
+/**
+ * Set for the duration of a preview render. When true, text fields are tagged
+ * with `data-nl-edit="<path>"` so the canvas can turn them into contenteditable
+ * regions. Always false for the export.
+ */
+let INTERACTIVE = false;
+
+/** Emit the editable marker for a field path, e.g. "heading" or "items.0". */
+function ed(path: string): string {
+  return INTERACTIVE ? ` data-nl-edit="${path}"` : '';
+}
 
 /** Resolves an image id to a usable <img src>, or null when there is nothing to show. */
 export type ImageResolver = (imageId: string | null) => string | null; // returns a usable <img src>
@@ -103,13 +115,13 @@ function iconBadge(iconKey: string, t: ThemeTokens = BASE_T, size: number = ICON
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="background:${t.iconTileBg};border:1px solid ${t.iconTileBorder};border-radius:${RADIUS.sm}px;"><tr><td width="${size}" height="${size}" align="center" valign="middle" style="width:${size}px;height:${size}px;text-align:center;"><svg width="${inner}" height="${inner}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;">${icon.svg}</svg></td></tr></table>`;
 }
 
-function sectionHeading(iconKey: string, heading: string, t: ThemeTokens = BASE_T): string {
+function sectionHeading(iconKey: string, heading: string, t: ThemeTokens = BASE_T, path = 'heading'): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="left" style="margin-bottom:${SPACE.sm}px;"><tr><td valign="middle" style="padding-right:12px;">${iconBadge(
     iconKey,
     t
   )}</td><td valign="middle" align="left" style="text-align:left;"><div style="font-family:${FONT};font-size:${TYPE.h4.size}px;line-height:${
     TYPE.h4.lh
-  }px;font-weight:700;letter-spacing:.9px;color:${t.heading};text-align:left;">${esc(heading.toUpperCase())}</div></td></tr></table>`;
+  }px;font-weight:700;letter-spacing:.9px;color:${t.heading};text-align:left;"${ed(path)}>${esc(heading.toUpperCase())}</div></td></tr></table>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -159,20 +171,20 @@ function renderHero(s: HeroSection, settings: GlobalSettings, resolve: ImageReso
 
   const titleSize = layout === 'minimal' ? TYPE.h2 : layout === 'editorial' ? TYPE.display : TYPE.h1;
   const title = s.title
-    ? `<h1 class="title" style="margin:0;font-family:${FONT};font-size:${titleSize.size}px;line-height:${titleSize.lh}px;font-weight:bold;color:${heading};letter-spacing:${titleSize.tracking}px;">${esc(
+    ? `<h1 class="title"${ed('title')} style="margin:0;font-family:${FONT};font-size:${titleSize.size}px;line-height:${titleSize.lh}px;font-weight:bold;color:${heading};letter-spacing:${titleSize.tracking}px;">${rich(
         s.title
       )}</h1>`
     : '';
 
   const subtitle =
     s.showSubtitle && s.subtitle
-      ? `<p style="margin:${SPACE.sm}px 0 0;font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:${TYPE.bodyLg.lh}px;color:${bodyColor};">${nl2br(
+      ? `<p${ed('subtitle')} style="margin:${SPACE.sm}px 0 0;font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:${TYPE.bodyLg.lh}px;color:${bodyColor};">${rich(
           s.subtitle
         )}</p>`
       : '';
 
   const description = s.description
-    ? `<p style="margin:${SPACE.sm}px 0 0;font-family:${FONT};font-size:${TYPE.body.size}px;line-height:${TYPE.body.lh}px;color:${bodyColor};">${nl2br(
+    ? `<p${ed('description')} style="margin:${SPACE.sm}px 0 0;font-family:${FONT};font-size:${TYPE.body.size}px;line-height:${TYPE.body.lh}px;color:${bodyColor};">${rich(
         s.description
       )}</p>`
     : '';
@@ -253,14 +265,14 @@ function renderHero(s: HeroSection, settings: GlobalSettings, resolve: ImageReso
 
 function renderContentBody(s: ContentSection, t: ThemeTokens): string {
   const para = (txt: string) =>
-    `<p style="margin:${SPACE.md}px 0 0;font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:${TYPE.bodyLg.lh}px;color:${t.text};text-align:left;">${nl2br(txt)}</p>`;
+    `<p${ed(s.bodyType === 'paragraph' || s.bodyType === 'mixed' ? 'paragraph' : 'paragraph')} style="margin:${SPACE.md}px 0 0;font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:${TYPE.bodyLg.lh}px;color:${t.text};text-align:left;">${rich(txt)}</p>`;
 
   if (s.bodyType === 'paragraph') return para(s.paragraph);
 
   const rows = s.items
     .map((item, i) => {
       const marker = s.bodyType === 'numbered' ? `${i + 1}.` : '&bull;';
-      return `<tr><td valign="top" width="22" style="font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:28px;color:${t.heading};">${marker}</td><td style="font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:28px;color:${t.text};text-align:left;padding-bottom:${SPACE.xs}px;">${nl2br(
+      return `<tr><td valign="top" width="22" style="font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:28px;color:${t.heading};">${marker}</td><td style="font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:28px;color:${t.text};text-align:left;padding-bottom:${SPACE.xs}px;"${ed(`items.${i}`)}>${rich(
         item
       )}</td></tr>`;
     })
@@ -272,7 +284,7 @@ function renderContentBody(s: ContentSection, t: ThemeTokens): string {
 
 function renderContent(s: ContentSection, t: ThemeTokens, ownCard: boolean): string {
   const sub = s.subheading
-    ? `<p style="margin:${SPACE.sm}px 0 0;font-family:${FONT};font-size:${TYPE.small.size}px;line-height:${TYPE.small.lh}px;color:${t.muted};text-align:left;">${nl2br(
+    ? `<p${ed('subheading')} style="margin:${SPACE.sm}px 0 0;font-family:${FONT};font-size:${TYPE.small.size}px;line-height:${TYPE.small.lh}px;color:${t.muted};text-align:left;">${rich(
         s.subheading
       )}</p>`
     : '';
@@ -281,13 +293,13 @@ function renderContent(s: ContentSection, t: ThemeTokens, ownCard: boolean): str
 
 function renderInfoCard(s: InfoCardSection, t: ThemeTokens, ownCard: boolean): string {
   return card(`
-    <div style="font-family:${FONT};font-size:${TYPE.h4.size}px;font-weight:700;letter-spacing:.5px;color:${t.heading};margin-bottom:${SPACE.sm}px;">${esc(
+    <div${ed('heading')} style="font-family:${FONT};font-size:${TYPE.h4.size}px;font-weight:700;letter-spacing:.5px;color:${t.heading};margin-bottom:${SPACE.sm}px;">${esc(
     s.heading.toUpperCase()
   )}</div>
     <div style="background:${s.backgroundColor || t.surfaceAlt};border-radius:${RADIUS.md}px;padding:${SPACE.lg - 4}px;border-left:4px solid ${
     s.borderColor || t.accent
   };text-align:left;">
-      <p style="margin:0;font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:${TYPE.bodyLg.lh}px;color:${t.text};text-align:left;">${nl2br(
+      <p style="margin:0;font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:${TYPE.bodyLg.lh}px;color:${t.text};text-align:left;"${ed('text')}>${rich(
     s.text
   )}</p>
     </div>
@@ -416,10 +428,10 @@ function renderCTA(s: CTASection, t: ThemeTokens, ownCard: boolean): string {
   const chrome = ownCard ? `border:1px solid ${t.border};border-radius:${RADIUS.md}px;background:${t.cardBg};` : '';
   const innerPad = ownCard ? `${SPACE.lg}px ${SPACE.lg}px ${SPACE.lg + 2}px` : '0';
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="${chrome}"><tr><td style="padding:${innerPad};">
-    <div style="font-family:${FONT};font-size:${TYPE.h3.size}px;line-height:${TYPE.h3.lh}px;font-weight:700;letter-spacing:.8px;color:${t.heading};text-align:center;text-transform:uppercase;margin-bottom:${SPACE.xs}px;">${esc(
+    <div${ed('heading')} style="font-family:${FONT};font-size:${TYPE.h3.size}px;line-height:${TYPE.h3.lh}px;font-weight:700;letter-spacing:.8px;color:${t.heading};text-align:center;text-transform:uppercase;margin-bottom:${SPACE.xs}px;">${rich(
     s.heading
   )}</div>
-    <p style="margin:0 auto;max-width:460px;font-family:${FONT};font-size:${TYPE.body.size}px;line-height:${TYPE.body.lh}px;color:${t.muted};text-align:center;">${nl2br(
+    <p${ed('description')} style="margin:0 auto;max-width:460px;font-family:${FONT};font-size:${TYPE.body.size}px;line-height:${TYPE.body.lh}px;color:${t.muted};text-align:center;">${rich(
     s.description
   )}</p>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding-top:${SPACE.lg - 4}px;">
@@ -493,7 +505,7 @@ function renderAbout(s: AboutSection, settings: GlobalSettings, resolve: ImageRe
     </tr></table>`;
 
   const description = s.description
-    ? `<p style="margin:${SPACE.sm}px 0 0;font-family:${FONT};font-size:${TYPE.small.size}px;line-height:${TYPE.small.lh + 1}px;color:${t.text};text-align:justify;">${nl2br(
+    ? `<p${ed('description')} style="margin:${SPACE.sm}px 0 0;font-family:${FONT};font-size:${TYPE.small.size}px;line-height:${TYPE.small.lh + 1}px;color:${t.text};text-align:left;">${rich(
         s.description
       )}</p>`
     : '';
@@ -580,17 +592,17 @@ function renderTextBlock(s: TextBlockSection): string {
   const h = HEADING_SIZES[s.headingSize] ?? HEADING_SIZES.md;
 
   const heading = s.heading
-    ? `<div style="font-family:${FONT};font-size:${h.size}px;line-height:${h.lineHeight}px;font-weight:${
+    ? `<div${ed('heading')} style="font-family:${FONT};font-size:${h.size}px;line-height:${h.lineHeight}px;font-weight:${
         s.headingWeight === 'bold' ? 700 : 400
-      };color:${t.text};">${esc(s.heading)}</div>`
+      };color:${t.text};">${rich(s.heading)}</div>`
     : '';
   const sub = s.subheading
-    ? `<p style="margin:8px 0 0;font-family:${FONT};font-size:14px;line-height:22px;color:${t.muted};">${nl2br(
+    ? `<p${ed('subheading')} style="margin:8px 0 0;font-family:${FONT};font-size:14px;line-height:22px;color:${t.muted};">${rich(
         s.subheading
       )}</p>`
     : '';
   const body = s.body
-    ? `<p style="margin:14px 0 0;font-family:${FONT};font-size:15px;line-height:26px;color:${t.text};text-align:justify;">${nl2br(
+    ? `<p${ed('body')} style="margin:14px 0 0;font-family:${FONT};font-size:15px;line-height:26px;color:${t.text};text-align:left;">${rich(
         s.body
       )}</p>`
     : '';
@@ -623,12 +635,12 @@ function renderListBlock(s: ListBlockSection): string {
     .filter((i) => i.title || i.text)
     .map((item, i) => {
       const title = item.title
-        ? `<div style="font-family:${FONT};font-size:15px;font-weight:700;color:${t.text};">${esc(item.title)}</div>`
+        ? `<div${ed(`items.${i}.title`)} style="font-family:${FONT};font-size:15px;font-weight:700;color:${t.text};">${rich(item.title)}</div>`
         : '';
       const text = item.text
-        ? `<div style="font-family:${FONT};font-size:14.5px;line-height:23px;color:${t.text};${
+        ? `<div${ed(`items.${i}.text`)} style="font-family:${FONT};font-size:14.5px;line-height:23px;color:${t.text};${
             title ? 'margin-top:4px;' : ''
-          }">${nl2br(item.text)}</div>`
+          }">${rich(item.text)}</div>`
         : '';
       const body = title + text;
 
@@ -738,10 +750,10 @@ function renderFaq(s: FaqSection): string {
   const items = s.items
     .filter((i) => i.question)
     .map(
-      (i) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;border-bottom:1px solid ${t.border};">
+      (i, idx) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;border-bottom:1px solid ${t.border};">
         <tr><td style="padding-bottom:12px;">
-          <div style="font-family:${FONT};font-size:15px;font-weight:700;color:${t.text};">${esc(i.question)}</div>
-          ${i.answer ? `<p style="margin:8px 0 0;font-family:${FONT};font-size:14.5px;line-height:23px;color:${t.muted};">${nl2br(i.answer)}</p>` : ''}
+          <div${ed(`items.${idx}.question`)} style="font-family:${FONT};font-size:15px;font-weight:700;color:${t.text};">${rich(i.question)}</div>
+          ${i.answer ? `<p${ed(`items.${idx}.answer`)} style="margin:8px 0 0;font-family:${FONT};font-size:14.5px;line-height:23px;color:${t.muted};">${rich(i.answer)}</p>` : ''}
         </td></tr>
       </table>`
     )
@@ -1142,7 +1154,7 @@ function renderSection(section: Section, settings: GlobalSettings, resolve: Imag
   // so changing Theme recolours all three consistently.
   const t = tokensFor(section.type, section.style);
   const inner = renderSectionInner(section, settings, resolve, t);
-  const extras = renderBoxes(section.boxes, t) + renderButtonGroup(section.buttons, t);
+  const extras = renderBoxes(section.boxes, t, INTERACTIVE) + renderButtonGroup(section.buttons, t);
   if (!inner && !extras) return '';
   return wrapBlock(inner + extras, styleForType(section.type, section.style));
 }
@@ -1189,6 +1201,7 @@ export function generateHTML(
   opts: GenerateOptions = {}
 ): string {
   const interactive = opts.interactive === true;
+  INTERACTIVE = interactive;
   // Sections normally sit inside a padded content column. Blocks marked
   // fullBleed escape it and get their own edge-to-edge row, so a hero band or
   // image banner can run the full 640px width with square corners.

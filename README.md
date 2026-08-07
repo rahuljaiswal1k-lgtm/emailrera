@@ -142,6 +142,31 @@ real API calls against a small backend.
 
 ## In-canvas editing
 
+Text is edited **directly on the newsletter**. Click any heading, paragraph,
+list item, FAQ answer or callout-box line and it becomes editable in place, with
+a floating toolbar offering font family, size, **bold**, *italic*, underline,
+highlight, alignment and text colour.
+
+- Inline formatting is stored as a whitelist of `<b> <i> <u> <s> <mark> <br>`
+  only — `sanitizeRich()` strips everything else, so contenteditable can never
+  inject arbitrary markup into an email.
+- Font, size, alignment and colour map onto the block's `BlockStyle`, so they
+  survive as real design state rather than as inline junk.
+- Selecting a section pushes a message *into* the frame instead of re-rendering
+  it — regenerating the srcDoc would reload the iframe and destroy an edit in
+  progress.
+
+## Code mode
+
+The preview header has a **Design / Code** toggle. Code mode shows the exact
+HTML the export produces, with Copy and Download, and it is editable: **Apply
+HTML** stores it as `htmlOverride` and both the preview and the export then use
+it verbatim. Hand-written HTML cannot be parsed back into sections, so a banner
+says so plainly and **Revert to sections** restores the generated output — the
+sections are never discarded.
+
+## Section editing on the canvas
+
 The preview is not a picture — it is the editing surface, the way Mailchimp and
 Brevo work. `lib/canvasEditor.ts` injects a small CSS + script layer into the
 preview iframe that gives every section:

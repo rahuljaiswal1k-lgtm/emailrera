@@ -386,5 +386,6 @@ export function blankNewsletter(): Newsletter {
     createSection('content'),
     createSection('cta'),
     createSection('about'),
+    createSection('footer'),
   ]);
 }

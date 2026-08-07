@@ -48,6 +48,10 @@ interface NewsletterStore {
   duplicateSection: (id: string) => void;
   setSections: (sections: Section[]) => void;
   updateSection: (id: string, partial: Partial<Section>) => void;
+  /** Apply an inline canvas edit addressed by dotted path, e.g. "items.2.title". */
+  updateSectionField: (id: string, path: string, value: string) => void;
+  /** Code mode: set hand-written HTML, or null to go back to the sections. */
+  setHtmlOverride: (html: string | null) => void;
   toggleSectionVisibility: (id: string) => void;
   selectSection: (id: string | null) => void;
   duplicateCurrentAsNew: () => void;
@@ -208,6 +212,41 @@ export const useNewsletterStore = create<NewsletterStore>((set, get) => ({
       );
       return { current: { ...s.current, sections } };
     });
+    persistCurrent(get, set);
+  },
+
+  updateSectionField: (id, path, value) => {
+    set((s) => {
+      if (!s.current) return {};
+      const sections = s.current.sections.map((sec) => {
+        if (sec.id !== id) return sec;
+        // Clone along the path so React/zustand see a new object graph.
+        const clone: Record<string, unknown> = { ...(sec as unknown as Record<string, unknown>) };
+        const parts = path.split('.');
+        let node: Record<string, unknown> | unknown[] = clone;
+        for (let i = 0; i < parts.length - 1; i++) {
+          const key = parts[i];
+          const idx = Number(key);
+          const container = node as Record<string, unknown>;
+          const child = Array.isArray(node) ? (node as unknown[])[idx] : container[key];
+          if (child === undefined || child === null) return sec;
+          const copy = Array.isArray(child) ? [...(child as unknown[])] : { ...(child as object) };
+          if (Array.isArray(node)) (node as unknown[])[idx] = copy;
+          else container[key] = copy;
+          node = copy as Record<string, unknown> | unknown[];
+        }
+        const last = parts[parts.length - 1];
+        if (Array.isArray(node)) (node as unknown[])[Number(last)] = value;
+        else (node as Record<string, unknown>)[last] = value;
+        return clone as unknown as Section;
+      });
+      return { current: { ...s.current, sections } };
+    });
+    persistCurrent(get, set);
+  },
+
+  setHtmlOverride: (html) => {
+    set((s) => (s.current ? { current: { ...s.current, htmlOverride: html } } : {}));
     persistCurrent(get, set);
   },
 

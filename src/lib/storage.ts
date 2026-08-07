@@ -1,6 +1,7 @@
 import { get, set, del, keys } from 'idb-keyval';
 import type { GlobalSettings, Newsletter, StoredImage } from '../types/newsletter';
 import { defaultBrandAssets } from './brandAssets';
+import { createSection } from '../data/sectionDefaults';
 
 const NEWSLETTERS_KEY = 'reraeasy_newsletters_v1';
 const GLOBAL_SETTINGS_KEY = 'reraeasy_global_settings_v1';
@@ -14,10 +15,24 @@ const IMAGE_PREFIX = 'reraeasy_img_v1_';
 export function loadNewsletters(): Newsletter[] {
   try {
     const raw = localStorage.getItem(NEWSLETTERS_KEY);
-    return raw ? (JSON.parse(raw) as Newsletter[]) : [];
+    const list = raw ? (JSON.parse(raw) as Newsletter[]) : [];
+    return list.map(migrateNewsletter);
   } catch {
     return [];
   }
+}
+
+/**
+ * Forward-migrate a stored newsletter.
+ *
+ * The page footer used to be hardcoded into the generated HTML, so older
+ * newsletters have no `footer` section and their footer could not be selected
+ * or edited. Appending one on load makes it a real, editable block — the
+ * built-in fallback then stops rendering, so nothing is duplicated.
+ */
+export function migrateNewsletter(n: Newsletter): Newsletter {
+  if (n.sections.some((s) => s.type === 'footer')) return n;
+  return { ...n, sections: [...n.sections, createSection('footer')] };
 }
 
 /**
