@@ -84,9 +84,18 @@ export const useNewsletterStore = create<NewsletterStore>((set, get) => ({
   init: async () => {
     const newsletters = loadNewsletters();
     const globalSettings = loadGlobalSettings();
-    const imageList = await loadAllImages();
+    // IndexedDB can be unavailable entirely (private browsing, blocked site
+    // storage). That must not stop the app from booting — without this the
+    // rejected promise leaves `ready` false and the UI stuck on "Loading…"
+    // forever. Newsletters still load; only previously uploaded images are
+    // missing, and re-uploading reports its own error.
     const images: Record<string, StoredImage> = {};
-    imageList.forEach((img) => (images[img.id] = img));
+    try {
+      const imageList = await loadAllImages();
+      imageList.forEach((img) => (images[img.id] = img));
+    } catch (err) {
+      console.error('Failed to load stored images from IndexedDB', err);
+    }
     set({ newsletters, globalSettings, images, ready: true });
   },
 
