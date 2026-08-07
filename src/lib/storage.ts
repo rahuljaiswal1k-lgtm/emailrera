@@ -1,5 +1,6 @@
 import { get, set, del, keys } from 'idb-keyval';
 import type { GlobalSettings, Newsletter, StoredImage } from '../types/newsletter';
+import { defaultBrandAssets } from './brandAssets';
 
 const NEWSLETTERS_KEY = 'reraeasy_newsletters_v1';
 const GLOBAL_SETTINGS_KEY = 'reraeasy_global_settings_v1';
@@ -65,6 +66,7 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
     'RERA Easy is a specialized MahaRERA compliance and regulatory execution partner that helps developers manage project registrations, quarterly compliances, legal documentation, certifications, audits, and ongoing regulatory obligations under one roof. It combines legal and financial expertise to simplify compliance, reduce risk, and ensure smooth project execution for real estate developers across Maharashtra.',
   websiteUrl: 'https://www.reraeasy.com/',
   legalText: '© RERAEasy · For informational purposes only. Not legal advice.',
+  brandAssets: defaultBrandAssets(),
 };
 
 export function loadGlobalSettings(): GlobalSettings {

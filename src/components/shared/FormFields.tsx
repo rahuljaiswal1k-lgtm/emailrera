@@ -52,21 +52,41 @@ export function TextAreaField({
   );
 }
 
-export function ColorField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+export function ColorField({
+  value,
+  onChange,
+  allowEmpty = false,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  /** Shows a "clear" control so the value can fall back to a theme/preset colour. */
+  allowEmpty?: boolean;
+}) {
   return (
     <div className="flex items-center gap-2">
       <input
         type="color"
         value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : '#000000'}
         onChange={(e) => onChange(e.target.value)}
-        className="w-9 h-9 rounded-md"
+        className="w-9 h-9 rounded-md shrink-0"
       />
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#FFDA4B]"
+        placeholder={allowEmpty ? 'Auto' : undefined}
+        className="flex-1 min-w-0 rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#FFDA4B]"
       />
+      {allowEmpty && value && (
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          title="Reset to automatic"
+          className="shrink-0 w-8 h-8 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-800 flex items-center justify-center text-sm"
+        >
+          ×
+        </button>
+      )}
     </div>
   );
 }

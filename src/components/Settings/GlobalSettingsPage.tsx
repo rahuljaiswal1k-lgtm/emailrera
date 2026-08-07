@@ -2,6 +2,7 @@ import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { useNewsletterStore } from '../../store/useNewsletterStore';
 import { FieldGroup, TextField, TextAreaField, SelectField } from '../shared/FormFields';
 import { ImagePicker } from '../shared/ImagePicker';
+import { AssetManager } from './AssetManager';
 import type { GlobalSettings } from '../../types/newsletter';
 
 const SOCIAL_PLATFORMS: { value: GlobalSettings['social'][number]['platform']; label: string }[] = [
@@ -160,6 +161,8 @@ export function GlobalSettingsPage() {
             <Plus size={12} /> Add Social Link
           </button>
         </section>
+
+        <AssetManager />
 
         <section className="bg-white rounded-2xl border border-gray-200 p-6">
           <h2 className="text-sm font-bold text-gray-900 mb-4">Footer Legal Text</h2>

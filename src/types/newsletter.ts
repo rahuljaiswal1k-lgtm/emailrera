@@ -4,7 +4,13 @@
 // with every field each section type needs.
 // ============================================================================
 
+import type { BlockStyle, HeadingSize } from '../lib/blockStyle';
+import type { ButtonGroup } from '../lib/blockButtons';
+import type { ContainerBox } from '../lib/blockBoxes';
+import type { BrandAssets } from '../lib/brandAssets';
+
 export type SectionType =
+  // --- original nine (unchanged) ---
   | 'hero'
   | 'content'
   | 'infoCard'
@@ -13,12 +19,41 @@ export type SectionType =
   | 'quote'
   | 'cta'
   | 'stats'
-  | 'about';
+  | 'about'
+  // --- extended block library ---
+  | 'textBlock'
+  | 'boxGroup'
+  | 'listBlock'
+  | 'columns'
+  | 'faq'
+  | 'comparison'
+  | 'testimonial'
+  | 'logoStrip'
+  | 'gallery'
+  | 'divider'
+  | 'ctaBanner'
+  | 'imageBanner';
 
 export interface BaseSection {
   id: string;
   type: SectionType;
   visible: boolean;
+
+  // --- shared block capabilities -------------------------------------------
+  // All optional. A newsletter saved before these existed simply has no such
+  // keys, and the resolve helpers fall back to neutral defaults, so old
+  // sections render byte-for-byte as they did before.
+
+  /** Background / border / radius / shadow / padding / spacing / alignment. */
+  style?: BlockStyle;
+  /** Optional buttons — available on every block, not just CTA. */
+  buttons?: ButtonGroup;
+  /** Optional styled sub-containers rendered after the block's own content. */
+  boxes?: ContainerBox[];
+  /** Colour label shown in the sidebar, for visual grouping. */
+  colorLabel?: string;
+  /** Sidebar-only: collapsed in the section list. */
+  collapsed?: boolean;
 }
 
 /** Section Type 1 — Hero Section */
@@ -126,6 +161,153 @@ export interface AboutSection extends BaseSection {
   description: string;
 }
 
+// ============================================================================
+// Extended block library
+// ----------------------------------------------------------------------------
+// These twelve types deliberately cover a much larger set of named components
+// through *variants* rather than one type per component. e.g. `listBlock`
+// renders Checklist, Timeline, Numbered Steps, Key Takeaways and Feature List;
+// `boxGroup` renders Information / Warning / Highlight / Insight / Callout
+// cards via ContainerBox kinds. Fewer types, far fewer switch statements, and
+// every one of them inherits style + buttons + boxes from BaseSection.
+// ============================================================================
+
+/** Text Block + Section Header. */
+export interface TextBlockSection extends BaseSection {
+  type: 'textBlock';
+  eyebrow: string;
+  badge: string;
+  heading: string;
+  headingSize: HeadingSize;
+  headingWeight: 'normal' | 'bold';
+  subheading: string;
+  body: string;
+  showDivider: boolean;
+}
+
+/** Information / Warning / Highlight / Insight / Callout cards — content in `boxes`. */
+export interface BoxGroupSection extends BaseSection {
+  type: 'boxGroup';
+  heading: string;
+  icon: string;
+}
+
+export interface ListItem {
+  id: string;
+  title: string;
+  text: string;
+}
+
+export type ListStyle = 'checklist' | 'numbered' | 'bullets' | 'timeline' | 'steps' | 'takeaways' | 'features';
+
+/** Checklist / Timeline / Numbered Steps / Key Takeaways / Feature List. */
+export interface ListBlockSection extends BaseSection {
+  type: 'listBlock';
+  heading: string;
+  icon: string;
+  intro: string;
+  listStyle: ListStyle;
+  items: ListItem[];
+}
+
+export interface ColumnItem {
+  id: string;
+  icon: string;
+  title: string;
+  text: string;
+  imageId: string | null;
+}
+
+/** Two/Three Column Content, Icon Grid, Metric Cards. */
+export interface ColumnsSection extends BaseSection {
+  type: 'columns';
+  heading: string;
+  count: 2 | 3;
+  columnStyle: 'plain' | 'card' | 'icon' | 'metric' | 'image';
+  columns: ColumnItem[];
+}
+
+export interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+export interface FaqSection extends BaseSection {
+  type: 'faq';
+  heading: string;
+  icon: string;
+  items: FaqItem[];
+}
+
+export interface ComparisonSection extends BaseSection {
+  type: 'comparison';
+  heading: string;
+  leftTitle: string;
+  rightTitle: string;
+  leftItems: string[];
+  rightItems: string[];
+  leftAccent: string;
+  rightAccent: string;
+}
+
+export interface TestimonialSection extends BaseSection {
+  type: 'testimonial';
+  quote: string;
+  authorName: string;
+  authorRole: string;
+  imageId: string | null;
+  layout: 'centered' | 'side';
+}
+
+export interface LogoStripSection extends BaseSection {
+  type: 'logoStrip';
+  heading: string;
+  imageIds: string[];
+  perRow: number;
+}
+
+export interface GallerySection extends BaseSection {
+  type: 'gallery';
+  heading: string;
+  imageIds: string[];
+  columns: 2 | 3;
+  gap: number;
+  caption: string;
+  borderRadius: number;
+}
+
+export interface DividerSection extends BaseSection {
+  type: 'divider';
+  dividerStyle: 'line' | 'space' | 'dots' | 'label';
+  label: string;
+  thickness: number;
+  color: string;
+  height: number;
+}
+
+/** Full-width CTA banner — buttons come from the shared ButtonGroup. */
+export interface CtaBannerSection extends BaseSection {
+  type: 'ctaBanner';
+  eyebrow: string;
+  heading: string;
+  description: string;
+  imageId: string | null;
+  layout: 'centered' | 'split';
+}
+
+export interface ImageBannerSection extends BaseSection {
+  type: 'imageBanner';
+  imageId: string | null;
+  heading: string;
+  subheading: string;
+  overlay: boolean;
+  overlayColor: string;
+  textColor: string;
+  borderRadius: number;
+  textPosition: 'top' | 'center' | 'bottom';
+}
+
 export type Section =
   | HeroSection
   | ContentSection
@@ -135,7 +317,19 @@ export type Section =
   | QuoteSection
   | CTASection
   | StatsSection
-  | AboutSection;
+  | AboutSection
+  | TextBlockSection
+  | BoxGroupSection
+  | ListBlockSection
+  | ColumnsSection
+  | FaqSection
+  | ComparisonSection
+  | TestimonialSection
+  | LogoStripSection
+  | GallerySection
+  | DividerSection
+  | CtaBannerSection
+  | ImageBannerSection;
 
 // ============================================================================
 // Newsletter (a saved project)
@@ -176,6 +370,12 @@ export interface GlobalSettings {
   aboutText: string;
   websiteUrl: string;
   legalText: string;
+  /**
+   * Brand Asset Manager bindings, keyed by BrandSlotKey. Optional so settings
+   * saved before the Asset Manager existed still load; defaultBrandAssets()
+   * fills the gap.
+   */
+  brandAssets?: BrandAssets;
 }
 
 // ============================================================================

@@ -12,39 +12,32 @@ import type {
   CTASection,
   StatsSection,
   AboutSection,
+  TextBlockSection,
+  BoxGroupSection,
+  ListBlockSection,
+  ColumnsSection,
+  FaqSection,
+  ComparisonSection,
+  TestimonialSection,
+  LogoStripSection,
+  GallerySection,
+  DividerSection,
+  CtaBannerSection,
+  ImageBannerSection,
 } from '../types/newsletter';
 import { getIcon } from '../data/icons';
+import { esc, nl2br, isDark, EMAIL_FONT } from './htmlEscape';
+import { resolveStyle, wrapBlock, spacerRow, HEADING_SIZES, computeTokens } from './blockStyle';
+import { renderButtonGroup } from './blockButtons';
+import { renderBoxes } from './blockBoxes';
+import { SOCIAL_SVG_FALLBACK, getBinding, type BrandSlotKey } from './brandAssets';
 
-const FONT = 'Arial,Helvetica,sans-serif';
+const FONT = EMAIL_FONT;
 
 /** Resolves an image id to a usable <img src>, or null when there is nothing to show. */
 export type ImageResolver = (imageId: string | null) => string | null; // returns a usable <img src>
 
-function esc(str: string): string {
-  return (str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function nl2br(str: string): string {
-  return esc(str).replace(/\n/g, '<br>');
-}
-
-function isDark(hex: string): boolean {
-  const h = hex.replace('#', '');
-  if (h.length < 6) return false;
-  const r = parseInt(h.substring(0, 2), 16);
-  const g = parseInt(h.substring(2, 4), 16);
-  const b = parseInt(h.substring(4, 6), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance < 0.55;
-}
-
-function spacer(height: number): string {
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td height="${height}" style="font-size:0;line-height:0;">&nbsp;</td></tr></table>`;
-}
+const spacer = spacerRow;
 
 function cardOpen(): string {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #D9DDE3;border-radius:22px;background:#FFFFFF;"><tr><td style="padding:28px;">`;
@@ -278,7 +271,7 @@ function renderStats(s: StatsSection): string {
 }
 
 function renderAbout(s: AboutSection, settings: GlobalSettings, resolve: ImageResolver): string {
-  const logoSrc = resolve(settings.logoImageId);
+  const logoSrc = brandSrc(settings, 'logo', resolve) ?? resolve(settings.logoImageId);
   const logo = logoSrc
     ? `<img src="${esc(logoSrc)}" alt="${esc(settings.companyName)}" width="110" style="display:block;border:0;outline:none;text-decoration:none;height:auto;">`
     : '';
@@ -309,8 +302,432 @@ function renderAbout(s: AboutSection, settings: GlobalSettings, resolve: ImageRe
   </td></tr></table>`;
 }
 
-function renderSection(section: Section, settings: GlobalSettings, resolve: ImageResolver): string {
-  if (!section.visible) return '';
+// ===========================================================================
+// Extended block library
+// ---------------------------------------------------------------------------
+// Each of these covers several of the named components through variants, and
+// every one of them additionally inherits style / buttons / boxes from the
+// shared wrapper in renderSection().
+// ===========================================================================
+
+/** Small uppercase label above a heading. */
+function eyebrowHtml(text: string, color: string): string {
+  if (!text) return '';
+  return `<div style="font-family:${FONT};font-size:12px;font-weight:700;letter-spacing:1.2px;color:${color};margin-bottom:8px;">${esc(
+    text.toUpperCase()
+  )}</div>`;
+}
+
+/** Pill badge. */
+function badgeHtml(text: string, bg: string, fg: string): string {
+  if (!text) return '';
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:12px;"><tr><td style="background:${bg};border-radius:100px;padding:5px 14px;font-family:${FONT};font-size:11.5px;font-weight:700;letter-spacing:.6px;color:${fg};">${esc(
+    text.toUpperCase()
+  )}</td></tr></table>`;
+}
+
+function renderTextBlock(s: TextBlockSection): string {
+  const style = resolveStyle(s.style);
+  const t = computeTokens(style);
+  const h = HEADING_SIZES[s.headingSize] ?? HEADING_SIZES.md;
+
+  const heading = s.heading
+    ? `<div style="font-family:${FONT};font-size:${h.size}px;line-height:${h.lineHeight}px;font-weight:${
+        s.headingWeight === 'bold' ? 700 : 400
+      };color:${t.text};">${esc(s.heading)}</div>`
+    : '';
+  const sub = s.subheading
+    ? `<p style="margin:8px 0 0;font-family:${FONT};font-size:14px;line-height:22px;color:${t.muted};">${nl2br(
+        s.subheading
+      )}</p>`
+    : '';
+  const body = s.body
+    ? `<p style="margin:14px 0 0;font-family:${FONT};font-size:15px;line-height:26px;color:${t.text};text-align:justify;">${nl2br(
+        s.body
+      )}</p>`
+    : '';
+  const divider = s.showDivider
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:16px;"><tr><td style="border-top:2px solid ${t.accent};font-size:0;line-height:0;width:52px;">&nbsp;</td></tr></table>`
+    : '';
+
+  return `${badgeHtml(s.badge, t.accent, isDark(t.accent) ? '#FFFFFF' : '#1D1F1F')}${eyebrowHtml(
+    s.eyebrow,
+    t.muted
+  )}${heading}${sub}${divider}${body}`;
+}
+
+function renderBoxGroup(s: BoxGroupSection): string {
+  if (!s.heading) return '';
+  return sectionHeading(s.icon || 'document', s.heading);
+}
+
+function renderListBlock(s: ListBlockSection): string {
+  const style = resolveStyle(s.style);
+  const t = computeTokens(style);
+  const head = s.heading ? sectionHeading(s.icon || 'document', s.heading) : '';
+  const intro = s.intro
+    ? `<p style="margin:16px 0 0;font-family:${FONT};font-size:14px;line-height:22px;color:${t.muted};">${nl2br(
+        s.intro
+      )}</p>`
+    : '';
+
+  const rows = s.items
+    .filter((i) => i.title || i.text)
+    .map((item, i) => {
+      const title = item.title
+        ? `<div style="font-family:${FONT};font-size:15px;font-weight:700;color:${t.text};">${esc(item.title)}</div>`
+        : '';
+      const text = item.text
+        ? `<div style="font-family:${FONT};font-size:14.5px;line-height:23px;color:${t.text};${
+            title ? 'margin-top:4px;' : ''
+          }">${nl2br(item.text)}</div>`
+        : '';
+      const body = title + text;
+
+      switch (s.listStyle) {
+        case 'checklist':
+          return `<tr><td valign="top" width="34" style="padding:10px 0 0;"><div style="width:22px;height:22px;border-radius:50%;background:#2E9E4E;text-align:center;line-height:22px;"><span style="font-family:${FONT};font-size:12px;font-weight:bold;color:#fff;">&#10003;</span></div></td><td style="padding:10px 0 0;">${body}</td></tr>`;
+
+        case 'numbered':
+        case 'steps':
+          return `<tr><td valign="top" width="42" style="padding:12px 0 0;"><div style="width:30px;height:30px;border-radius:50%;background:${
+            t.accent
+          };text-align:center;line-height:30px;"><span style="font-family:${FONT};font-size:14px;font-weight:bold;color:${
+            isDark(t.accent) ? '#FFFFFF' : '#1D1F1F'
+          };">${i + 1}</span></div></td><td style="padding:12px 0 0;">${body}</td></tr>`;
+
+        case 'timeline': {
+          const isLast = i === s.items.length - 1;
+          return `<tr><td valign="top" width="38" style="padding:0;">
+              <div style="width:12px;height:12px;border-radius:50%;background:${t.accent};margin:6px 0 0 6px;"></div>
+              ${isLast ? '' : `<div style="width:2px;height:100%;min-height:34px;background:${t.border};margin-left:11px;"></div>`}
+            </td><td style="padding:0 0 18px;">${body}</td></tr>`;
+        }
+
+        case 'takeaways':
+          return `<tr><td valign="top" width="34" style="padding:10px 0 0;"><div style="width:22px;height:22px;border-radius:6px;background:${t.accent};text-align:center;line-height:22px;"><span style="font-family:${FONT};font-size:12px;font-weight:bold;color:#1D1F1F;">&#9733;</span></div></td><td style="padding:10px 0 0;">${body}</td></tr>`;
+
+        case 'features':
+          return `<tr><td valign="top" width="34" style="padding:10px 0 0;"><div style="width:22px;height:22px;border-radius:50%;background:${t.accent};text-align:center;line-height:22px;"><span style="font-family:${FONT};font-size:13px;font-weight:bold;color:#1D1F1F;">&#43;</span></div></td><td style="padding:10px 0 0;">${body}</td></tr>`;
+
+        default:
+          return `<tr><td valign="top" width="22" style="padding:8px 0 0;font-family:${FONT};font-size:15px;line-height:24px;color:${t.text};">&bull;</td><td style="padding:8px 0 0;">${body}</td></tr>`;
+      }
+    })
+    .join('');
+
+  const list = rows
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:12px;">${rows}</table>`
+    : '';
+
+  return head + intro + list;
+}
+
+function renderColumns(s: ColumnsSection, resolve: ImageResolver): string {
+  const style = resolveStyle(s.style);
+  const t = computeTokens(style);
+  const head = s.heading
+    ? `<div style="font-family:${FONT};font-size:16px;font-weight:700;letter-spacing:.6px;color:${t.text};margin-bottom:18px;">${esc(
+        s.heading.toUpperCase()
+      )}</div>`
+    : '';
+
+  const cols = s.columns.filter((c) => c.title || c.text || c.imageId);
+  if (cols.length === 0) return head;
+
+  const perRow = s.count;
+  const width = Math.floor(100 / perRow);
+  const rows: string[] = [];
+
+  for (let i = 0; i < cols.length; i += perRow) {
+    const group = cols.slice(i, i + perRow);
+    const cells = group
+      .map((c) => {
+        const isCard = s.columnStyle === 'card' || s.columnStyle === 'metric';
+        const cardOpenCss = isCard
+          ? `background:${t.bg === 'transparent' ? '#FFFFFF' : t.bg};border:1px solid ${t.border};border-radius:14px;padding:18px;`
+          : '';
+
+        let head2 = '';
+        if (s.columnStyle === 'icon' && c.icon) {
+          head2 = `<div style="margin-bottom:10px;">${iconBadge(c.icon)}</div>`;
+        } else if (s.columnStyle === 'image') {
+          const src = resolve(c.imageId);
+          head2 = src
+            ? `<img src="${esc(src)}" alt="${esc(c.title)}" width="100%" style="display:block;width:100%;max-width:100%;height:auto;border-radius:10px;margin-bottom:10px;">`
+            : imgPlaceholder('100%', 10);
+        } else if (s.columnStyle === 'metric') {
+          head2 = `<div style="font-family:${FONT};font-size:26px;font-weight:bold;color:${t.text};margin-bottom:4px;">${esc(
+            c.title
+          )}</div>`;
+        }
+
+        const title =
+          s.columnStyle === 'metric'
+            ? ''
+            : c.title
+            ? `<div style="font-family:${FONT};font-size:15px;font-weight:700;color:${t.text};">${esc(c.title)}</div>`
+            : '';
+        const text = c.text
+          ? `<div style="font-family:${FONT};font-size:13.5px;line-height:21px;color:${
+              s.columnStyle === 'metric' ? t.muted : t.text
+            };margin-top:6px;">${nl2br(c.text)}</div>`
+          : '';
+
+        return `<td class="stack" width="${width}%" valign="top" style="padding:0 6px 12px;"><div style="${cardOpenCss}">${head2}${title}${text}</div></td>`;
+      })
+      .join('');
+    rows.push(`<tr>${cells}</tr>`);
+  }
+
+  return `${head}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rows.join('')}</table>`;
+}
+
+function renderFaq(s: FaqSection): string {
+  const style = resolveStyle(s.style);
+  const t = computeTokens(style);
+  const head = s.heading ? sectionHeading(s.icon || 'document', s.heading) : '';
+  const items = s.items
+    .filter((i) => i.question)
+    .map(
+      (i) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;border-bottom:1px solid ${t.border};">
+        <tr><td style="padding-bottom:12px;">
+          <div style="font-family:${FONT};font-size:15px;font-weight:700;color:${t.text};">${esc(i.question)}</div>
+          ${i.answer ? `<p style="margin:8px 0 0;font-family:${FONT};font-size:14.5px;line-height:23px;color:${t.muted};">${nl2br(i.answer)}</p>` : ''}
+        </td></tr>
+      </table>`
+    )
+    .join('');
+  return head + items;
+}
+
+function renderComparison(s: ComparisonSection): string {
+  const style = resolveStyle(s.style);
+  const t = computeTokens(style);
+  const head = s.heading
+    ? `<div style="font-family:${FONT};font-size:16px;font-weight:700;letter-spacing:.6px;color:${t.text};margin-bottom:16px;text-align:center;">${esc(
+        s.heading.toUpperCase()
+      )}</div>`
+    : '';
+
+  const column = (title: string, items: string[], accent: string) => {
+    const rows = items
+      .filter(Boolean)
+      .map(
+        (i) =>
+          `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:10px;"><tr><td valign="top" width="20" style="font-family:${FONT};font-size:14px;line-height:22px;color:${accent};">&bull;</td><td style="font-family:${FONT};font-size:14px;line-height:22px;color:${t.text};">${nl2br(
+            i
+          )}</td></tr></table>`
+      )
+      .join('');
+    return `<td class="stack" width="48%" valign="top" style="padding:0 6px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${t.border};border-top:3px solid ${accent};border-radius:12px;">
+        <tr><td style="padding:18px;">
+          <div style="font-family:${FONT};font-size:14px;font-weight:700;color:${accent};letter-spacing:.5px;">${esc(
+      title.toUpperCase()
+    )}</div>
+          ${rows}
+        </td></tr>
+      </table>
+    </td>`;
+  };
+
+  return `${head}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+    ${column(s.leftTitle, s.leftItems, s.leftAccent || '#E14B4B')}
+    ${column(s.rightTitle, s.rightItems, s.rightAccent || '#2E9E4E')}
+  </tr></table>`;
+}
+
+function renderTestimonial(s: TestimonialSection, resolve: ImageResolver): string {
+  const style = resolveStyle(s.style);
+  const t = computeTokens(style);
+  const src = resolve(s.imageId);
+  const avatar = src
+    ? `<img src="${esc(src)}" alt="${esc(s.authorName)}" width="56" style="display:block;width:56px;height:56px;border-radius:50%;object-fit:cover;">`
+    : '';
+
+  const author = `<div style="font-family:${FONT};font-size:14px;font-weight:700;color:${t.text};">${esc(
+    s.authorName
+  )}</div>${s.authorRole ? `<div style="font-family:${FONT};font-size:12.5px;color:${t.muted};margin-top:2px;">${esc(s.authorRole)}</div>` : ''}`;
+
+  const quote = `<p style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:17px;line-height:28px;font-style:italic;color:${t.text};">&ldquo;${nl2br(
+    s.quote
+  )}&rdquo;</p>`;
+
+  if (s.layout === 'side') {
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+      ${avatar ? `<td class="stack" width="76" valign="top" style="padding-right:16px;">${avatar}</td>` : ''}
+      <td class="stack" valign="top">${quote}<div style="margin-top:12px;">${author}</div></td>
+    </tr></table>`;
+  }
+
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center">
+    ${avatar ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr><td>${avatar}</td></tr></table>` : ''}
+    ${quote}
+    <div style="margin-top:14px;">${author}</div>
+  </td></tr></table>`;
+}
+
+function renderLogoStrip(s: LogoStripSection, resolve: ImageResolver): string {
+  const style = resolveStyle(s.style);
+  const t = computeTokens(style);
+  const head = s.heading
+    ? `<div style="font-family:${FONT};font-size:12.5px;font-weight:700;letter-spacing:1px;color:${t.muted};text-align:center;margin-bottom:16px;">${esc(
+        s.heading.toUpperCase()
+      )}</div>`
+    : '';
+
+  const ids = s.imageIds.filter(Boolean);
+  if (ids.length === 0) return head;
+
+  const perRow = Math.max(1, s.perRow || 4);
+  const width = Math.floor(100 / perRow);
+  const rows: string[] = [];
+  for (let i = 0; i < ids.length; i += perRow) {
+    const cells = ids
+      .slice(i, i + perRow)
+      .map((id) => {
+        const src = resolve(id);
+        return `<td class="stack" width="${width}%" align="center" valign="middle" style="padding:10px;">${
+          src ? `<img src="${esc(src)}" alt="" width="100%" style="display:block;width:100%;max-width:110px;height:auto;">` : ''
+        }</td>`;
+      })
+      .join('');
+    rows.push(`<tr>${cells}</tr>`);
+  }
+
+  return `${head}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rows.join('')}</table>`;
+}
+
+function renderGallery(s: GallerySection, resolve: ImageResolver): string {
+  const style = resolveStyle(s.style);
+  const t = computeTokens(style);
+  const head = s.heading
+    ? `<div style="font-family:${FONT};font-size:16px;font-weight:700;letter-spacing:.6px;color:${t.text};margin-bottom:14px;">${esc(
+        s.heading.toUpperCase()
+      )}</div>`
+    : '';
+
+  const ids = s.imageIds.length ? s.imageIds : [null];
+  const perRow = s.columns || 2;
+  const width = Math.floor(100 / perRow);
+  const gap = s.gap ?? 6;
+  const rows: string[] = [];
+
+  for (let i = 0; i < ids.length; i += perRow) {
+    const cells = ids
+      .slice(i, i + perRow)
+      .map((id) => {
+        const src = resolve(id);
+        return `<td class="stack" width="${width}%" valign="top" style="padding:${gap}px;">${
+          src
+            ? `<img src="${esc(src)}" alt="" width="100%" style="display:block;width:100%;max-width:100%;height:auto;border-radius:${s.borderRadius}px;">`
+            : imgPlaceholder('100%', s.borderRadius)
+        }</td>`;
+      })
+      .join('');
+    rows.push(`<tr>${cells}</tr>`);
+  }
+
+  const caption = s.caption
+    ? `<p style="margin:10px 0 0;font-family:${FONT};font-size:12.5px;line-height:18px;color:${t.muted};text-align:center;">${esc(
+        s.caption
+      )}</p>`
+    : '';
+
+  return `${head}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rows.join(
+    ''
+  )}</table>${caption}`;
+}
+
+function renderDivider(s: DividerSection): string {
+  const color = s.color || '#E3E6EC';
+  switch (s.dividerStyle) {
+    case 'space':
+      return spacerRow(s.height || 24);
+    case 'dots':
+      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="font-family:${FONT};font-size:18px;letter-spacing:8px;color:${color};line-height:18px;">&bull;&bull;&bull;</td></tr></table>`;
+    case 'label':
+      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+        <td style="border-top:${s.thickness || 1}px solid ${color};font-size:0;line-height:0;">&nbsp;</td>
+        <td width="1%" style="padding:0 12px;white-space:nowrap;font-family:${FONT};font-size:11.5px;font-weight:700;letter-spacing:1.2px;color:${color};">${esc(
+        (s.label || '').toUpperCase()
+      )}</td>
+        <td style="border-top:${s.thickness || 1}px solid ${color};font-size:0;line-height:0;">&nbsp;</td>
+      </tr></table>`;
+    default:
+      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="border-top:${
+        s.thickness || 1
+      }px solid ${color};font-size:0;line-height:0;">&nbsp;</td></tr></table>`;
+  }
+}
+
+function renderCtaBanner(s: CtaBannerSection, resolve: ImageResolver): string {
+  const style = resolveStyle(s.style);
+  const t = computeTokens(style);
+
+  const eyebrow = eyebrowHtml(s.eyebrow, t.accent);
+  const heading = s.heading
+    ? `<div style="font-family:${FONT};font-size:21px;line-height:29px;font-weight:700;color:${t.text};">${esc(
+        s.heading
+      )}</div>`
+    : '';
+  const desc = s.description
+    ? `<p style="margin:10px 0 0;font-family:${FONT};font-size:14.5px;line-height:23px;color:${t.muted};">${nl2br(
+        s.description
+      )}</p>`
+    : '';
+  const copy = `${eyebrow}${heading}${desc}`;
+
+  if (s.layout === 'split') {
+    const src = resolve(s.imageId);
+    const imageCell = src
+      ? `<td class="stack" width="38%" valign="middle" style="padding-left:18px;"><img src="${esc(
+          src
+        )}" alt="" width="100%" style="display:block;width:100%;max-width:100%;height:auto;border-radius:12px;"></td>`
+      : '';
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td class="stack" width="${src ? '62%' : '100%'}" valign="middle">${copy}</td>
+      ${imageCell}
+    </tr></table>`;
+  }
+
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="text-align:center;">${copy}</td></tr></table>`;
+}
+
+function renderImageBanner(s: ImageBannerSection, resolve: ImageResolver): string {
+  const src = resolve(s.imageId);
+  const radius = s.borderRadius ?? 14;
+
+  const caption =
+    s.heading || s.subheading
+      ? `<div style="padding:18px 20px;${
+          s.overlay ? `background:${s.overlayColor || 'rgba(29,31,31,0.86)'};` : ''
+        }">
+          ${s.heading ? `<div class="title" style="font-family:${FONT};font-size:22px;line-height:30px;font-weight:bold;color:${s.textColor || '#FFFFFF'};">${esc(s.heading)}</div>` : ''}
+          ${s.subheading ? `<p style="margin:6px 0 0;font-family:${FONT};font-size:14px;line-height:21px;color:${s.textColor || '#FFFFFF'};opacity:.9;">${nl2br(s.subheading)}</p>` : ''}
+        </div>`
+      : '';
+
+  const image = src
+    ? `<img src="${esc(src)}" alt="${esc(s.heading)}" width="100%" style="display:block;width:100%;max-width:100%;height:auto;">`
+    : imgPlaceholder('100%', 0);
+
+  // Real background images are unreliable in email, so the text sits in a
+  // solid strip above or below the image instead of floating over it.
+  const order = s.textPosition === 'top' ? caption + image : image + caption;
+
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-radius:${radius}px;overflow:hidden;background:#1D1F1F;">
+    <tr><td style="font-size:0;line-height:0;">${order}</td></tr>
+  </table>`;
+}
+
+// ---------------------------------------------------------------------------
+// Section dispatch
+// ---------------------------------------------------------------------------
+
+/** The block's own content, before the shared style / boxes / buttons wrapper. */
+function renderSectionInner(section: Section, settings: GlobalSettings, resolve: ImageResolver): string {
   switch (section.type) {
     case 'hero':
       return renderHero(section);
@@ -330,28 +747,80 @@ function renderSection(section: Section, settings: GlobalSettings, resolve: Imag
       return renderStats(section);
     case 'about':
       return renderAbout(section, settings, resolve);
+    case 'textBlock':
+      return renderTextBlock(section);
+    case 'boxGroup':
+      return renderBoxGroup(section);
+    case 'listBlock':
+      return renderListBlock(section);
+    case 'columns':
+      return renderColumns(section, resolve);
+    case 'faq':
+      return renderFaq(section);
+    case 'comparison':
+      return renderComparison(section);
+    case 'testimonial':
+      return renderTestimonial(section, resolve);
+    case 'logoStrip':
+      return renderLogoStrip(section, resolve);
+    case 'gallery':
+      return renderGallery(section, resolve);
+    case 'divider':
+      return renderDivider(section);
+    case 'ctaBanner':
+      return renderCtaBanner(section, resolve);
+    case 'imageBanner':
+      return renderImageBanner(section, resolve);
     default:
       return '';
   }
 }
 
+/**
+ * Renders one section: its own content, then any container boxes, then any
+ * buttons — all wrapped in the shared BlockStyle chrome.
+ *
+ * A pre-existing section has no `style`, so resolveStyle() yields the neutral
+ * default (transparent, no padding, 18px bottom spacing) and wrapBlock() is a
+ * pass-through that reproduces the previous output.
+ */
+function renderSection(section: Section, settings: GlobalSettings, resolve: ImageResolver): string {
+  if (!section.visible) return '';
+  const inner = renderSectionInner(section, settings, resolve);
+  const extras = renderBoxes(section.boxes) + renderButtonGroup(section.buttons);
+  if (!inner && !extras) return '';
+  return wrapBlock(inner + extras, resolveStyle(section.style));
+}
+
 // ---------------------------------------------------------------------------
-// Social icons — rendered as inline SVG badges (no binary assets to bundle)
+// Brand assets — logo + social icons resolved through the Asset Manager
 // ---------------------------------------------------------------------------
 
-const SOCIAL_SVG: Record<string, string> = {
-  whatsapp: `<path d="M12 2a10 10 0 0 0-8.6 15L2 22l5.2-1.4A10 10 0 1 0 12 2z" fill="#111"/><path d="M8.6 7.4c.2-.5.4-.5.6-.5h.5c.2 0 .4 0 .6.4.2.5.7 1.7.7 1.8.1.1.1.3 0 .4-.1.2-.1.3-.3.4-.1.2-.3.3-.4.5-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1.2-.2.7-.8.9-1.1.2-.2.4-.2.6-.1.2.1 1.6.7 1.8.9.2.1.4.2.4.3 0 .2 0 .9-.3 1.4-.3.6-1.5 1.1-2.1 1.1-.5.1-1.2.1-1.9-.1-.4-.1-1-.3-1.7-.6-3-1.3-4.9-4.3-5.1-4.5-.1-.2-1.2-1.6-1.2-3.1 0-1.5.8-2.2 1-2.5z" fill="#fff"/>`,
-  instagram: `<rect x="2" y="2" width="20" height="20" rx="5" fill="#111"/><circle cx="12" cy="12" r="4.2" stroke="#fff" stroke-width="1.6" fill="none"/><circle cx="17.3" cy="6.7" r="1.1" fill="#fff"/>`,
-  linkedin: `<rect x="2" y="2" width="20" height="20" rx="3" fill="#111"/><rect x="5.5" y="9.5" width="2.6" height="9" fill="#fff"/><circle cx="6.8" cy="6.3" r="1.5" fill="#fff"/><path d="M10.7 9.5h2.5v1.3c.5-.8 1.4-1.5 2.9-1.5 2.1 0 3.4 1.4 3.4 4v5.2h-2.6v-4.7c0-1.2-.5-2-1.6-2-.9 0-1.4.6-1.6 1.2-.1.2-.1.5-.1.8v4.7h-2.6c0-.1 0-8 0-8.9z" fill="#fff"/>`,
-  facebook: `<circle cx="12" cy="12" r="10" fill="#111"/><path d="M13.5 21.9v-7.6h2.5l.4-3h-2.9V9.4c0-.9.2-1.5 1.5-1.5h1.6V5.2c-.3 0-1.2-.1-2.2-.1-2.2 0-3.7 1.3-3.7 3.8v2.4H8.2v3h2.5v7.6h2.8z" fill="#fff"/>`,
-  twitter: `<circle cx="12" cy="12" r="10" fill="#111"/><path d="M18 8.2c-.4.2-.9.3-1.4.4a2.4 2.4 0 0 0 1.1-1.3 4.8 4.8 0 0 1-1.5.6 2.4 2.4 0 0 0-4.1 2.2 6.8 6.8 0 0 1-5-2.5 2.4 2.4 0 0 0 .8 3.2c-.4 0-.7-.1-1-.3v.1c0 1.2.8 2.1 1.9 2.4-.3.1-.7.1-1 0 .3 1 1.2 1.7 2.3 1.7A4.8 4.8 0 0 1 6 16.1a6.8 6.8 0 0 0 3.7 1.1c4.4 0 6.9-3.7 6.9-6.9v-.3c.5-.3.9-.7 1.2-1.2z" fill="#fff"/>`,
-  youtube: `<rect x="2" y="5" width="20" height="14" rx="4" fill="#111"/><path d="M10 9.5l5 2.5-5 2.5z" fill="#fff"/>`,
-};
+/**
+ * Resolve one brand slot to an <img src>, or null to fall back to inline SVG.
+ * Uploaded image wins over a pasted URL so the export ZIP stays self-contained.
+ */
+function brandSrc(settings: GlobalSettings, key: BrandSlotKey, resolve: ImageResolver): string | null {
+  const binding = getBinding(settings.brandAssets, key);
+  if (binding.imageId) {
+    const src = resolve(binding.imageId);
+    if (src) return src;
+  }
+  return binding.url || null;
+}
 
-function socialBadge(platform: string, url: string): string {
-  const svg = SOCIAL_SVG[platform];
-  if (!svg) return '';
-  return `<a href="${esc(url)}" target="_blank" style="text-decoration:none;"><svg width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display:block;">${svg}</svg></a>`;
+function socialBadge(platform: string, url: string, settings: GlobalSettings, resolve: ImageResolver): string {
+  const src = brandSrc(settings, platform as BrandSlotKey, resolve);
+  const inner = src
+    ? `<img src="${esc(src)}" alt="${esc(platform)}" width="22" height="22" style="display:block;width:22px;height:22px;border:0;outline:none;text-decoration:none;">`
+    : (() => {
+        const svg = SOCIAL_SVG_FALLBACK[platform];
+        return svg
+          ? `<svg width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display:block;">${svg}</svg>`
+          : '';
+      })();
+  if (!inner) return '';
+  return `<a href="${esc(url)}" target="_blank" style="text-decoration:none;">${inner}</a>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -359,13 +828,15 @@ function socialBadge(platform: string, url: string): string {
 // ---------------------------------------------------------------------------
 
 export function generateHTML(newsletter: Newsletter, settings: GlobalSettings, resolve: ImageResolver): string {
+  // Inter-block spacing now comes from each block's own BlockStyle
+  // (spacingTop / spacingBottom), applied by wrapBlock().
   const sectionsHtml = newsletter.sections
     .map((s) => renderSection(s, settings, resolve))
     .filter(Boolean)
-    .map((html, i, arr) => (i < arr.length - 1 ? html + spacer(18) : html))
     .join('');
 
-  const headerLogoSrc = resolve(settings.logoImageId);
+  // Asset Manager logo slot wins; the legacy Global Settings logo still works.
+  const headerLogoSrc = brandSrc(settings, 'logo', resolve) ?? resolve(settings.logoImageId);
   const logo = headerLogoSrc
     ? `<img src="${esc(headerLogoSrc)}" alt="${esc(settings.companyName)}" width="120" style="display:block;border:0;outline:none;text-decoration:none;height:auto;">`
     : `<div style="font-family:${FONT};font-weight:bold;color:#fff;font-size:18px;">${esc(settings.companyName)}</div>`;
@@ -379,7 +850,9 @@ export function generateHTML(newsletter: Newsletter, settings: GlobalSettings, r
     )
     .join('');
 
-  const socialLinks = settings.social.map((s) => `<td style="padding-right:12px;">${socialBadge(s.platform, s.url)}</td>`).join('');
+  const socialLinks = settings.social
+    .map((s) => `<td style="padding-right:12px;">${socialBadge(s.platform, s.url, settings, resolve)}</td>`)
+    .join('');
 
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -452,12 +925,40 @@ export function collectImageIds(newsletter: Newsletter, settings: GlobalSettings
   const add = (id: string | null | undefined) => {
     if (id && !ids.includes(id)) ids.push(id);
   };
+
+  // Brand Asset Manager slots first, so the logo keeps its stable image1 slot.
   add(settings.logoImageId);
+  if (settings.brandAssets) {
+    Object.values(settings.brandAssets).forEach((b) => add(b?.imageId));
+  }
+
   newsletter.sections.forEach((s) => {
-    if (s.type === 'image') {
-      add(s.imageId);
-      add(s.imageId2);
-      s.gridImageIds.forEach(add);
+    switch (s.type) {
+      case 'image':
+        add(s.imageId);
+        add(s.imageId2);
+        s.gridImageIds.forEach(add);
+        break;
+      case 'columns':
+        s.columns.forEach((c) => add(c.imageId));
+        break;
+      case 'gallery':
+        s.imageIds.forEach(add);
+        break;
+      case 'logoStrip':
+        s.imageIds.forEach(add);
+        break;
+      case 'testimonial':
+        add(s.imageId);
+        break;
+      case 'ctaBanner':
+        add(s.imageId);
+        break;
+      case 'imageBanner':
+        add(s.imageId);
+        break;
+      default:
+        break;
     }
   });
   return ids;

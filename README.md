@@ -140,31 +140,136 @@ shows a red **Not saved** indicator in the top bar instead of failing silently.
 For a shared/multi-person setup, the next step would be swapping `src/lib/storage.ts` for
 real API calls against a small backend.
 
+## The block design system
+
+Every section is a **block**, and each block composes three shared layers that live
+outside its own type. This is the core architectural idea: a new block never has to
+reimplement styling, buttons or containers.
+
+| Layer | File | What it gives every block |
+|---|---|---|
+| **BlockStyle** | `lib/blockStyle.ts` | theme, card variant, background/text/border colours, border width, radius, shadow, padding, space above/below, alignment, section width, separator lines |
+| **ButtonGroup** | `lib/blockButtons.ts` | zero or more buttons with variant / size / shape / full-width, group alignment, inline or stacked — on *any* block, not just CTA |
+| **ContainerBox[]** | `lib/blockBoxes.ts` | styled sub-containers (information, warning, success, highlight, dark, yellow, outline, callout, quote, feature, checklist, mini) rendered inside the block |
+
+These map directly to the Properties panel's **Design**, **Buttons** and **Boxes** tabs,
+which appear for every block type. The **Content** tab is the only per-type editor.
+
+All three are **optional** on a section. A newsletter saved before this system existed
+has none of these keys, so `resolveStyle()` falls back to a neutral transparent default
+and the section renders exactly as it did before. That backward compatibility is
+verified against real pre-upgrade data, not assumed.
+
+### Block library
+
+21 block types cover a much larger set of named components, because several of them
+select their component through a *variant* rather than being separate types:
+
+| Block | Covers |
+|---|---|
+| `textBlock` | Text Block, Section Header (badge, eyebrow, heading size/weight, subheading, accent rule) |
+| `boxGroup` | Information Box, Warning Box, Highlight Box, Insight Card, Callout Strip — via ContainerBox kinds |
+| `listBlock` | Checklist, Numbered List, Numbered Steps, Timeline, Key Takeaways, Feature List |
+| `columns` | Two/Three Column Content, Icon Grid, Metric Cards, Image Cards |
+| `faq` | FAQ |
+| `comparison` | Comparison Block |
+| `testimonial` | Testimonial (centred or photo-beside) |
+| `logoStrip` | Logo Strip |
+| `gallery` | Image Gallery |
+| `divider` | Divider Section, Spacer, dotted rule, labelled rule |
+| `ctaBanner` | CTA Banner, CTA Card (centred or split with image) |
+| `imageBanner` | Image Banner, Hero Image |
+
+Plus the original nine — Hero, Content, Information Card, Myth vs Fact, Image, Quote,
+CTA, Statistics, About — all unchanged and all now able to carry style, buttons and boxes.
+
+### Adding a new block
+
+Four edits, all mechanical:
+
+1. Add the type to the `SectionType` union and an interface to the `Section` union in
+   `types/newsletter.ts`.
+2. Add a `case` to `createSection()` in `data/sectionDefaults.ts` returning its defaults.
+3. Add an entry to `BLOCK_CATALOG` (category, description, search keywords).
+4. Add a renderer `case` in `htmlGenerator.ts` and a `<XxxFields>` `case` in
+   `PropertiesPanel.tsx`.
+
+You do **not** write any styling, button or container code — those come from the shared
+layers via `renderSection()`'s wrapper.
+
+### Adding a new template
+
+A template is only a chosen combination of blocks plus overrides, so it is a **single
+entry** in the `TEMPLATES` array in `data/templates.ts` — no other file changes:
+
+```ts
+{
+  key: 'myTemplate',
+  name: 'My Template',
+  description: 'What it is for.',
+  category: 'Alerts & Compliance',       // groups it in the template picker
+  build: () => base('Default Title', '', [
+    createSection('hero'),
+    withOverrides(createSection('listBlock') as ListBlockSection, { listStyle: 'timeline' }),
+    createSection('ctaBanner'),
+    createSection('about'),
+  ]),
+}
+```
+
+## Brand assets
+
+`lib/brandAssets.ts` defines named slots — `logo`, `whatsapp`, `instagram`, `linkedin`,
+`facebook`, `twitter`, `youtube` — managed from **Global Settings → Brand Assets**.
+Each slot resolves in order:
+
+1. **An uploaded image** — bundled into the export ZIP automatically.
+2. **An absolute `https://` URL** — best for email, since nothing needs bundling.
+3. **The built-in inline-SVG fallback** — last resort.
+
+Swapping in the real RERA Easy logo or official social icons therefore needs **no code
+change**: upload a file or paste a URL. The Asset Manager flags every slot still on a
+fallback, because those are exactly the ones Gmail and Outlook will render as blank space.
+
 ## Project structure
 
 ```
 src/
-  types/newsletter.ts          Core data model (every section type + fields)
+  types/newsletter.ts          Core data model (21 block types + shared BaseSection)
   data/
     icons.ts                   Icon library (Module 4)
-    sectionDefaults.ts         "New section" factories + labels
-    templates.ts                6 starter templates (Module 5)
+    sectionDefaults.ts         Block factories, labels, BLOCK_CATALOG (categories + search)
+    templates.ts               12 starter templates in 5 categories (Module 5)
   store/useNewsletterStore.ts  Zustand store — all app state + actions
   lib/
     htmlGenerator.ts           ⭐ Core: Newsletter → table-based email HTML
-    exportZip.ts                Module 8: ZIP export (index.html + images/ + data.json)
-    importZip.ts                Module 9: ZIP import / round-trip restore
-    storage.ts                  localStorage + IndexedDB persistence
-    id.ts                       Tiny id generator
+    blockStyle.ts              ⭐ Shared design tokens + wrapBlock() chrome
+    blockButtons.ts            ⭐ Buttons for every block (VML + HTML)
+    blockBoxes.ts              ⭐ Container boxes for every block
+    brandAssets.ts             ⭐ Brand Asset Manager slots + resolution order
+    htmlEscape.ts              Shared esc / nl2br / isDark primitives
+    exportZip.ts               Module 8: ZIP export (index.html + images/ + data.json)
+    importZip.ts               Module 9: ZIP import / round-trip restore
+    storage.ts                 localStorage + IndexedDB persistence
+    id.ts                      Tiny id generator
   components/
-    Dashboard/                 Module 1
+    Dashboard/                 Module 1 — now groups templates by category
     Editor/
-      EditorLayout.tsx          Module 2 (3-pane layout)
-      Sidebar/                  Section list, drag-and-drop, add-section menu
-      Preview/                  Live iframe preview
-      Properties/               Per-section-type field editors (Module 3)
-    Settings/GlobalSettingsPage.tsx   Module 10
-    shared/                     Reusable field inputs, image picker, icon picker, modal
+      EditorLayout.tsx         Module 2 (3-pane layout)
+      Sidebar/
+        Sidebar.tsx            Section list + search
+        SortableSectionItem.tsx  Drag, hide, duplicate, delete, colour label
+        sectionSummary.ts      Shared one-line summaries (also used by search)
+        AddSectionMenu.tsx     Searchable, categorised block picker
+      Preview/                 Live iframe preview
+      Properties/
+        PropertiesPanel.tsx    Content / Design / Buttons / Boxes tabs
+        sections/              Per-type Content editors (21)
+        shared/                StyleFields, ButtonFields, BoxFields, RepeatableList
+    Settings/
+      GlobalSettingsPage.tsx   Module 10
+      AssetManager.tsx         Brand asset slots
+    shared/                    Field inputs, image picker, image list picker, icon picker, modal
 ```
 
 ## A note on the visual design

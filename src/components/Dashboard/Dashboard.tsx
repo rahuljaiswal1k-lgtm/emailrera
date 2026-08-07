@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNewsletterStore } from '../../store/useNewsletterStore';
-import { TEMPLATES } from '../../data/templates';
+import { TEMPLATES, TEMPLATE_CATEGORY_ORDER } from '../../data/templates';
 import { Modal } from '../shared/Modal';
 import { SECTION_LABELS } from '../../data/sectionDefaults';
 import { Plus, Copy, Trash2, Settings, FileText, LayoutTemplate } from 'lucide-react';
@@ -106,34 +106,40 @@ export function Dashboard() {
 
       {showTemplates && (
         <Modal title="Start from a Template" onClose={() => setShowTemplates(false)} width="max-w-3xl">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <button
-              onClick={() => {
-                createBlankNewsletter();
-                setShowTemplates(false);
-              }}
-              className="text-left p-4 rounded-xl border border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50"
-            >
-              <div className="font-semibold text-sm text-gray-900">Blank Newsletter</div>
-              <div className="text-xs text-gray-400 mt-1">Start from scratch with a minimal layout.</div>
-            </button>
-            {TEMPLATES.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => {
-                  createFromTemplate(t.build());
-                  setShowTemplates(false);
-                }}
-                className="text-left p-4 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50"
-              >
-                <div className="font-semibold text-sm text-gray-900">{t.name}</div>
-                <div className="text-xs text-gray-400 mt-1">{t.description}</div>
-                <div className="text-[10px] text-gray-400 mt-2">
-                  {t.build().sections.map((s) => SECTION_LABELS[s.type]).join(' · ')}
-                </div>
-              </button>
-            ))}
-          </div>
+          <button
+            onClick={() => {
+              createBlankNewsletter();
+              setShowTemplates(false);
+            }}
+            className="w-full text-left p-4 rounded-xl border border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 mb-5"
+          >
+            <div className="font-semibold text-sm text-gray-900">Blank Newsletter</div>
+            <div className="text-xs text-gray-400 mt-1">Start from scratch with a minimal layout.</div>
+          </button>
+
+          {TEMPLATE_CATEGORY_ORDER.filter((c) => TEMPLATES.some((t) => t.category === c)).map((category) => (
+            <div key={category} className="mb-5">
+              <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-2">{category}</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {TEMPLATES.filter((t) => t.category === category).map((t) => (
+                  <button
+                    key={t.key}
+                    onClick={() => {
+                      createFromTemplate(t.build());
+                      setShowTemplates(false);
+                    }}
+                    className="text-left p-4 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50"
+                  >
+                    <div className="font-semibold text-sm text-gray-900">{t.name}</div>
+                    <div className="text-xs text-gray-400 mt-1">{t.description}</div>
+                    <div className="text-[10px] text-gray-400 mt-2">
+                      {t.build().sections.map((s) => SECTION_LABELS[s.type]).join(' · ')}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
         </Modal>
       )}
 
