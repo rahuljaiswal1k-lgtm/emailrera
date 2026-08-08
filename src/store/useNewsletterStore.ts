@@ -62,6 +62,8 @@ interface NewsletterStore {
 
   // global settings
   updateGlobalSettings: (partial: Partial<GlobalSettings>) => void;
+  /** Dotted-path update for global settings, e.g. "offices.0.label". */
+  updateGlobalField: (path: string, value: string) => void;
 }
 
 function persistCurrent(get: () => NewsletterStore, set: (p: Partial<NewsletterStore>) => void) {
@@ -314,6 +316,29 @@ export const useNewsletterStore = create<NewsletterStore>((set, get) => ({
 
   updateGlobalSettings: (partial) => {
     const next = { ...get().globalSettings, ...partial };
+    set({ globalSettings: next });
+    saveGlobalSettings(next);
+  },
+
+  updateGlobalField: (path, value) => {
+    const parts = path.split('.');
+    const settings = get().globalSettings;
+    // Deep clone along the path so React sees a new object graph.
+    const clone: Record<string, unknown> = { ...(settings as unknown as Record<string, unknown>) };
+    let node: Record<string, unknown> | unknown[] = clone;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const key = parts[i];
+      const child = Array.isArray(node) ? (node as unknown[])[Number(key)] : (node as Record<string, unknown>)[key];
+      if (child === undefined || child === null) return;
+      const copy = Array.isArray(child) ? [...(child as unknown[])] : { ...(child as object) };
+      if (Array.isArray(node)) (node as unknown[])[Number(key)] = copy;
+      else (node as Record<string, unknown>)[key] = copy;
+      node = copy as Record<string, unknown> | unknown[];
+    }
+    const last = parts[parts.length - 1];
+    if (Array.isArray(node)) (node as unknown[])[Number(last)] = value;
+    else (node as Record<string, unknown>)[last] = value;
+    const next = clone as unknown as GlobalSettings;
     set({ globalSettings: next });
     saveGlobalSettings(next);
   },

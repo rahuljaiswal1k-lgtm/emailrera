@@ -28,6 +28,7 @@ export function PreviewFrame() {
   const setSections = useNewsletterStore((s) => s.setSections);
   const updateSectionField = useNewsletterStore((s) => s.updateSectionField);
   const updateSection = useNewsletterStore((s) => s.updateSection);
+  const updateGlobalField = useNewsletterStore((s) => s.updateGlobalField);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
@@ -68,7 +69,14 @@ export function PreviewFrame() {
 
       // Inline text edited on the canvas. Sanitised to the inline whitelist so
       // contenteditable can never inject arbitrary markup into the newsletter.
-      if (msg.type === 'edit') return updateSectionField(msg.id, msg.path, sanitizeRich(msg.value));
+      // Paths prefixed "__global." target Global Settings (e.g. office labels /
+      // addresses / legal text that appear inside the Footer block but live on
+      // the settings object shared across every newsletter).
+      if (msg.type === 'edit') {
+        const clean = sanitizeRich(msg.value);
+        if (msg.path.startsWith('__global.')) return updateGlobalField(msg.path.slice('__global.'.length), clean);
+        return updateSectionField(msg.id, msg.path, clean);
+      }
 
       // Formatting from the floating toolbar maps onto the block's BlockStyle.
       if (msg.type === 'format') {
@@ -112,7 +120,7 @@ export function PreviewFrame() {
     }
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [selectSection, duplicateSection, removeSection, setSections, updateSectionField, updateSection]);
+  }, [selectSection, duplicateSection, removeSection, setSections, updateSectionField, updateSection, updateGlobalField]);
 
   if (!current) return null;
 

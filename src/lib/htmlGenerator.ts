@@ -1023,9 +1023,9 @@ function renderFooter(s: FooterSection, settings: GlobalSettings, resolve: Image
           (o, i) =>
             `<td width="${Math.floor(100 / settings.offices.length)}%" valign="top" align="left" class="stack ${
               i === 0 ? 'addr-first' : 'addr-rest'
-            }"><div style="font-family:${FONT};font-size:${TYPE.caption.size}px;font-weight:bold;letter-spacing:.4px;color:${t.heading};margin-bottom:${SPACE.xs}px;text-align:left;">${esc(
+            }"><div${ed(`__global.offices.${i}.label`)} style="font-family:${FONT};font-size:${TYPE.caption.size}px;font-weight:bold;letter-spacing:.4px;color:${t.heading};margin-bottom:${SPACE.xs}px;text-align:left;">${esc(
               o.label.toUpperCase()
-            )}</div><div style="font-family:${FONT};font-size:${TYPE.caption.size - 0.5}px;line-height:19px;color:${t.text};text-align:left;">${nl2br(
+            )}</div><div${ed(`__global.offices.${i}.address`)} style="font-family:${FONT};font-size:${TYPE.caption.size - 0.5}px;line-height:19px;color:${t.text};text-align:left;">${nl2br(
               o.address
             )}</div></td>`
         )
@@ -1068,7 +1068,7 @@ function renderFooter(s: FooterSection, settings: GlobalSettings, resolve: Image
     : '';
 
   const legal = s.showLegal !== false && settings.legalText
-    ? `<div${ed('__legal')} style="margin-top:${SPACE.sm}px;font-family:${FONT};font-size:${TYPE.caption.size}px;line-height:18px;color:${t.text};text-align:center;">${esc(
+    ? `<div${ed('__global.legalText')} style="margin-top:${SPACE.sm}px;font-family:${FONT};font-size:${TYPE.caption.size}px;line-height:18px;color:${t.text};text-align:center;">${esc(
         settings.legalText
       )}</div>`
     : '';
