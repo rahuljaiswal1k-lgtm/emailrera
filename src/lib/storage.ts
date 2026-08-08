@@ -31,8 +31,14 @@ export function loadNewsletters(): Newsletter[] {
  * built-in fallback then stops rendering, so nothing is duplicated.
  */
 export function migrateNewsletter(n: Newsletter): Newsletter {
-  if (n.sections.some((s) => s.type === 'footer')) return n;
-  return { ...n, sections: [...n.sections, createSection('footer')] };
+  let sections = n.sections;
+  if (!sections.some((s) => s.type === 'header')) {
+    sections = [createSection('header'), ...sections];
+  }
+  if (!sections.some((s) => s.type === 'footer')) {
+    sections = [...sections, createSection('footer')];
+  }
+  return sections === n.sections ? n : { ...n, sections };
 }
 
 /**

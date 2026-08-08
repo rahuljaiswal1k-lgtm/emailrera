@@ -25,6 +25,7 @@ import type {
   CtaBannerSection,
   ImageBannerSection,
   FooterSection,
+  HeaderSection,
   HeroLayout,
 } from '../types/newsletter';
 import { getIcon } from '../data/icons';
@@ -987,6 +988,34 @@ function renderImageBanner(s: ImageBannerSection, resolve: ImageResolver): strin
  * so it can be themed, reordered and edited like anything else. Offices,
  * social row, legal line and unsubscribe are each individually toggleable.
  */
+/**
+ * Header block — replaces the hardcoded dark bar so background, logo, brand
+ * text and tagline are all editable. The theme drives the colours, so
+ * switching the block's Theme in the Design tab recolours everything at once.
+ */
+function renderHeader(s: HeaderSection, settings: GlobalSettings, resolve: ImageResolver, t: ThemeTokens): string {
+  const bg = s.backgroundColor || t.bg;
+  const logoSrc = s.showLogo !== false ? brandSrc(settings, 'logo', resolve) ?? resolve(settings.logoImageId) : null;
+
+  const logo = logoSrc
+    ? `<img src="${esc(logoSrc)}" alt="${esc(settings.companyName)}" width="${s.logoWidth || 120}" style="display:block;border:0;height:auto;margin:0 auto;">`
+    : '';
+
+  const brand = s.showBrandText !== false && s.brandText
+    ? `<div${ed('brandText')} style="font-family:${FONT};font-weight:bold;color:${t.heading};font-size:${TYPE.h3.size}px;line-height:${TYPE.h3.lh}px;${logo ? `margin-top:${SPACE.xs}px;` : ''}">${rich(
+        s.brandText
+      )}</div>`
+    : '';
+
+  const tagline = s.showTagline && s.tagline
+    ? `<div${ed('tagline')} style="font-family:${FONT};font-size:${TYPE.caption.size}px;color:${t.muted};margin-top:${SPACE.xxs}px;">${rich(
+        s.tagline
+      )}</div>`
+    : '';
+
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${bg};"><tr><td align="center" style="padding:${SPACE.md - 2}px 28px;text-align:center;">${logo}${brand}${tagline}</td></tr></table>`;
+}
+
 function renderFooter(s: FooterSection, settings: GlobalSettings, resolve: ImageResolver, t: ThemeTokens): string {
   const offices = s.showOffices !== false && settings.offices.length
     ? settings.offices
@@ -1012,7 +1041,7 @@ function renderFooter(s: FooterSection, settings: GlobalSettings, resolve: Image
 
   const socialLinks =
     s.showSocial !== false && settings.social.length
-      ? `<div style="font-family:${FONT};font-size:${TYPE.caption.size}px;font-weight:bold;color:${t.heading};margin-bottom:${SPACE.xs + 2}px;text-align:center;">${esc(
+      ? `<div${ed('socialLabel')} style="font-family:${FONT};font-size:${TYPE.caption.size}px;font-weight:bold;color:${t.heading};margin-bottom:${SPACE.xs + 2}px;text-align:center;">${esc(
           (s.socialLabel || 'FIND US ON').toUpperCase()
         )}</div>
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center"><tr>${settings.social
@@ -1039,19 +1068,19 @@ function renderFooter(s: FooterSection, settings: GlobalSettings, resolve: Image
     : '';
 
   const legal = s.showLegal !== false && settings.legalText
-    ? `<div style="margin-top:${SPACE.sm}px;font-family:${FONT};font-size:${TYPE.caption.size}px;line-height:18px;color:${t.text};text-align:center;">${esc(
+    ? `<div${ed('__legal')} style="margin-top:${SPACE.sm}px;font-family:${FONT};font-size:${TYPE.caption.size}px;line-height:18px;color:${t.text};text-align:center;">${esc(
         settings.legalText
       )}</div>`
     : '';
 
   const disclaimer = s.disclaimer
-    ? `<div style="margin-top:${SPACE.xs}px;font-family:${FONT};font-size:${TYPE.micro.size}px;line-height:16px;color:${t.muted};text-align:center;">${nl2br(
+    ? `<div${ed('disclaimer')} style="margin-top:${SPACE.xs}px;font-family:${FONT};font-size:${TYPE.micro.size}px;line-height:16px;color:${t.muted};text-align:center;">${rich(
         s.disclaimer
       )}</div>`
     : '';
 
   const unsubscribe = s.showUnsubscribe !== false
-    ? `<div style="margin-top:${SPACE.sm}px;text-align:center;"><a href="${esc(
+    ? `<div style="margin-top:${SPACE.sm}px;text-align:center;"><a${ed('unsubscribeText')} href="${esc(
         s.unsubscribeUrl || '#'
       )}" style="font-family:${FONT};font-size:${TYPE.caption.size}px;color:${t.text};text-decoration:underline;">${esc(
         s.unsubscribeText || 'Unsubscribe'
@@ -1111,6 +1140,8 @@ function renderSectionInner(section: Section, settings: GlobalSettings, resolve:
       return renderAbout(section, settings, resolve, t);
     case 'footer':
       return renderFooter(section, settings, resolve, t);
+    case 'header':
+      return renderHeader(section, settings, resolve, t);
     case 'textBlock':
       return renderTextBlock(section);
     case 'boxGroup':
@@ -1252,9 +1283,10 @@ export function generateHTML(
     .map((s) => `<td style="padding-right:12px;">${socialBadge(s.platform, s.url, settings, resolve)}</td>`)
     .join('');
 
-  // The footer is now a real, editable block. Newsletters that contain a
-  // `footer` section render that instead; anything saved before the block
-  // existed keeps this built-in footer so it does not silently lose it.
+  // Header and footer are now real, editable blocks. When present, they replace
+  // the corresponding hardcoded HTML below. Anything saved before either block
+  // existed keeps the built-in fallback so nothing is silently lost.
+  const hasHeaderBlock = newsletter.sections.some((x) => x.type === 'header' && x.visible);
   const hasFooterBlock = newsletter.sections.some((x) => x.type === 'footer' && x.visible);
   const builtInFooter = hasFooterBlock
     ? ''
@@ -1303,9 +1335,9 @@ export function generateHTML(
     <tr><td align="center" style="padding:24px 12px;">
       <table role="presentation" class="container" width="640" cellpadding="0" cellspacing="0" border="0" style="width:640px;max-width:640px;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,0.08);">
 
-        <tr><td class="px" style="background:#101010;padding:16px 28px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center">
+        ${hasHeaderBlock ? '' : `<tr><td class="px" style="background:#101010;padding:16px 28px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center">
           <a href="${esc(settings.websiteUrl)}" target="_blank" style="text-decoration:none;border:0;">${logo}</a>
-        </td></tr></table></td></tr>
+        </td></tr></table></td></tr>`}
 
         ${sectionsHtml}
 

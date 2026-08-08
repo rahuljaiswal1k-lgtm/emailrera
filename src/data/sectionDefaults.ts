@@ -25,6 +25,7 @@ import type {
   CtaBannerSection,
   ImageBannerSection,
   FooterSection,
+  HeaderSection,
 } from '../types/newsletter';
 import { DEFAULT_BLOCK_STYLE, CARD_BLOCK_STYLE, FULL_BLEED_BLOCK_STYLE } from '../lib/blockStyle';
 import { RADIUS } from '../lib/designTokens';
@@ -54,6 +55,7 @@ export const SECTION_LABELS: Record<SectionType, string> = {
   ctaBanner: 'CTA Banner',
   imageBanner: 'Image Banner',
   footer: 'Footer',
+  header: 'Header',
 };
 
 export type BlockCategory = 'Basics' | 'Content' | 'Callouts' | 'Media' | 'Data' | 'Conversion' | 'Layout';
@@ -110,6 +112,7 @@ export const BLOCK_CATALOG: BlockCatalogEntry[] = [
   { type: 'ctaBanner', category: 'Conversion', description: 'Full-width conversion banner with buttons', keywords: ['call to action', 'banner', 'promo'] },
 
   { type: 'about', category: 'Layout', description: 'About RERA Easy + contact box', keywords: ['contact', 'company', 'brand'] },
+  { type: 'header', category: 'Layout', description: 'Top logo bar with optional brand text and tagline', keywords: ['header', 'logo', 'brand', 'top', 'masthead'] },
   { type: 'footer', category: 'Layout', description: 'Offices, social row, legal line and unsubscribe', keywords: ['footer', 'address', 'office', 'social', 'legal', 'unsubscribe', 'copyright'] },
 ];
 
@@ -480,5 +483,30 @@ export function createSection(type: SectionType): Section {
         showEmail: false,
         showPhone: false,
       } satisfies FooterSection;
+
+    case 'header':
+      return {
+        id,
+        type,
+        visible: true,
+        style: {
+          ...CARD_BLOCK_STYLE,
+          theme: 'dark',
+          variant: 'filled',
+          borderRadius: 0,
+          padding: 18,
+          spacingTop: 0,
+          spacingBottom: 0,
+          fullBleed: true,
+          align: 'center',
+        },
+        showLogo: true,
+        logoWidth: 120,
+        showBrandText: true,
+        brandText: 'RERA Easy',
+        showTagline: false,
+        tagline: '',
+        backgroundColor: '',
+      } satisfies HeaderSection;
   }
 }

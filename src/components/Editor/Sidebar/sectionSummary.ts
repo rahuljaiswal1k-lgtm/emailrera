@@ -53,6 +53,8 @@ export function sectionSubtitle(section: Section): string {
       return section.heading || 'CTA banner';
     case 'imageBanner':
       return section.heading || 'Image banner';
+    case 'header':
+      return section.brandText || (section.showLogo !== false ? 'Logo' : 'Header');
     case 'footer':
       return [
         section.showOffices !== false ? 'offices' : null,

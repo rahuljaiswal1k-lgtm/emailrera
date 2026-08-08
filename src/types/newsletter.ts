@@ -33,7 +33,8 @@ export type SectionType =
   | 'divider'
   | 'ctaBanner'
   | 'imageBanner'
-  | 'footer';
+  | 'footer'
+  | 'header';
 
 export interface BaseSection {
   id: string;
@@ -112,6 +113,27 @@ export interface HeroSection extends BaseSection {
 
   heroPadding?: number;
   borderRadius?: number;
+}
+
+/**
+ * Header block — the page header (logo + tagline) promoted to a real section
+ * so it can be themed, restyled and reordered like anything else. Nothing is
+ * hardcoded any more — background colour, logo, brand text and tagline are all
+ * editable. Every newsletter gets one via migration; the built-in fallback
+ * still renders for anything that somehow has no header block.
+ */
+export interface HeaderSection extends BaseSection {
+  type: 'header';
+  showLogo?: boolean;
+  logoWidth?: number;
+  /** Company / brand text shown when there is no logo, or beside it. */
+  showBrandText?: boolean;
+  brandText?: string;
+  /** Small tagline under the logo. */
+  showTagline?: boolean;
+  tagline?: string;
+  /** The header's own colour override. Blank inherits the block theme. */
+  backgroundColor?: string;
 }
 
 /**
@@ -409,7 +431,8 @@ export type Section =
   | DividerSection
   | CtaBannerSection
   | ImageBannerSection
-  | FooterSection;
+  | FooterSection
+  | HeaderSection;
 
 // ============================================================================
 // Newsletter (a saved project)

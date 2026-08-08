@@ -249,7 +249,11 @@ export function canvasScript(): string {
         '<input type="color" data-fmt="colour" title="Text colour" value="#1D1F1F">';
       document.body.appendChild(bar);
 
-      bar.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      bar.addEventListener('mousedown', function (e) {
+        // Only stop button clicks from blurring the editable text. Selects and
+        // colour inputs need real focus to open their native picker.
+        if (e.target.closest && e.target.closest('button')) e.preventDefault();
+      });
 
       bar.addEventListener('click', function (e) {
         var b = e.target.closest ? e.target.closest('button') : null;
@@ -321,7 +325,7 @@ export function canvasScript(): string {
     document.addEventListener('click', function (e) {
       var f = e.target.closest ? e.target.closest('[data-nl-edit]') : null;
       if (f) { e.stopPropagation(); startEditing(f); }
-      else if (!(e.target.closest && e.target.closest('#nl-fmt'))) stopEditing();
+      else if (!(e.target.closest && e.target.closest('#nl-fmt')) && e.target !== document.documentElement) stopEditing();
     });
 
     document.addEventListener('keydown', function (e) {

@@ -56,6 +56,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
     category: 'Legal & Judgments',
     build: () =>
       base('New MahaRERA Order: What Developers Need To Know', '', [
+        createSection('header'),
         withOverrides(createSection('hero') as HeroSection, {
           title: 'New MahaRERA Order: What Developers Need To Know',
         }),
@@ -94,6 +95,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
     category: 'Education & Insights',
     build: () =>
       base('Myths vs Facts: What You Need To Know', '', [
+        createSection('header'),
         withOverrides(createSection('hero') as HeroSection, {
           title: 'Myths vs Facts: What You Need To Know',
         }),
@@ -116,6 +118,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
     category: 'Alerts & Compliance',
     build: () =>
       base('Compliance Alert: Action Required', '', [
+        createSection('header'),
         withOverrides(createSection('hero') as HeroSection, {
           title: 'Compliance Alert: Action Required',
           backgroundColor: '#FFDA4B',
@@ -144,6 +147,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
     category: 'Alerts & Compliance',
     build: () =>
       base('Developer Advisory', '', [
+        createSection('header'),
         createSection('hero'),
         withOverrides(createSection('content') as ContentSection, {
           icon: 'construction',
@@ -169,6 +173,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
     category: 'Education & Insights',
     build: () =>
       base('Understanding RERA: A Quick Guide', '', [
+        createSection('header'),
         createSection('hero'),
         withOverrides(createSection('content') as ContentSection, {
           icon: 'document',
@@ -193,6 +198,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
     category: 'News & Updates',
     build: () =>
       base('This Week In RERA', '', [
+        createSection('header'),
         withOverrides(createSection('hero') as HeroSection, { title: 'This Week In RERA' }),
         withOverrides(createSection('content') as ContentSection, {
           icon: 'marketing',
@@ -219,6 +225,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
     category: 'Alerts & Compliance',
     build: () =>
       base('Regulatory Alert: Immediate Action Required', '', [
+        createSection('header'),
         withOverrides(createSection('hero') as HeroSection, {
           title: 'Regulatory Alert',
           subtitle: 'Immediate action required for affected projects',
@@ -251,6 +258,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
     category: 'News & Updates',
     build: () =>
       base('Monthly Round-Up', '', [
+        createSection('header'),
         createSection('imageBanner'),
         withOverrides(createSection('textBlock') as TextBlockSection, {
           eyebrow: 'In this issue',
@@ -287,6 +295,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
     category: 'Marketing',
     build: () =>
       base('Case Study: How We Helped', '', [
+        createSection('header'),
         withOverrides(createSection('hero') as HeroSection, { title: 'Case Study: How We Helped' }),
         withOverrides(createSection('textBlock') as TextBlockSection, {
           eyebrow: 'The challenge',
@@ -311,6 +320,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
     category: 'Legal & Judgments',
     build: () =>
       base('Government Circular Summary', '', [
+        createSection('header'),
         withOverrides(createSection('hero') as HeroSection, {
           title: 'Government Circular Summary',
           backgroundColor: '#1D1F1F',
@@ -340,6 +350,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
     category: 'News & Updates',
     build: () =>
       base('Project Update', '', [
+        createSection('header'),
         withOverrides(createSection('hero') as HeroSection, { title: 'Project Update' }),
         withOverrides(createSection('listBlock') as ListBlockSection, {
           heading: 'PROGRESS TIMELINE',
@@ -361,6 +372,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
     category: 'Education & Insights',
     build: () =>
       base('Industry Insights', '', [
+        createSection('header'),
         withOverrides(createSection('hero') as HeroSection, { title: 'Industry Insights' }),
         withOverrides(createSection('textBlock') as TextBlockSection, {
           eyebrow: 'Analysis',
@@ -382,6 +394,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
 
 export function blankNewsletter(): Newsletter {
   return base('Untitled Newsletter', '', [
+    createSection('header'),
     createSection('hero'),
     createSection('content'),
     createSection('cta'),
