@@ -7,24 +7,45 @@
 // rewritten at load time to absolute URLs served by the app itself
 // (public/templates/sales-catalyst/*). Absolute URLs work in both places
 // because the recipient's mail client fetches them from the deployed site.
+//
+// The header logo (images/image1.png in the source) is special-cased: it is
+// resolved from the current Global Settings brand assets so the template
+// picks up whatever logo the user has already configured, instead of showing
+// a generic placeholder.
 
-// The Vite `?raw` import inlines the HTML into the bundle at build time.
 // eslint-disable-next-line import/no-unresolved
 import raw from './index.html?raw';
+import { useNewsletterStore } from '../../store/useNewsletterStore';
+import { getBinding } from '../../lib/brandAssets';
 
-const ORIG = ['images/image1.png', 'images/banner.png', 'images/banner2.png'] as const;
-const REWRITES: Record<string, string> = {
-  'images/image1.png': 'templates/sales-catalyst/image1.svg',
+const BANNER_REWRITES: Record<string, string> = {
   'images/banner.png': 'templates/sales-catalyst/banner.png',
   'images/banner2.png': 'templates/sales-catalyst/banner2.png',
 };
 
+function resolveLogoSrc(base: string): string {
+  const { images, globalSettings } = useNewsletterStore.getState();
+  const binding = getBinding(globalSettings.brandAssets, 'logo');
+  if (binding.imageId && images[binding.imageId]?.dataUrl) return images[binding.imageId].dataUrl;
+  if (binding.url) return binding.url;
+  if (globalSettings.logoImageId && images[globalSettings.logoImageId]?.dataUrl) {
+    return images[globalSettings.logoImageId].dataUrl;
+  }
+  // Fallback to the bundled placeholder that ships with this template.
+  return `${base}templates/sales-catalyst/image1.svg`;
+}
+
 export function salesCatalystHtml(): string {
   const base = `${window.location.origin}${import.meta.env.BASE_URL}`;
+  const logoSrc = resolveLogoSrc(base);
+
   let html = raw;
-  for (const from of ORIG) {
-    const to = base + REWRITES[from];
-    html = html.split(`src="${from}"`).join(`src="${to}"`);
+  // Rewrite every image1 reference (header + anywhere else the source used it)
+  // to the resolved global-settings logo.
+  html = html.split('src="images/image1.png"').join(`src="${logoSrc}"`);
+  // Rewrite the banner images to their app-hosted URLs.
+  for (const [from, path] of Object.entries(BANNER_REWRITES)) {
+    html = html.split(`src="${from}"`).join(`src="${base}${path}"`);
   }
   return html;
 }
