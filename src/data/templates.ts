@@ -1,6 +1,7 @@
 import { nanoid } from '../lib/id';
 import { createSection } from './sectionDefaults';
 import { createBox } from '../lib/blockBoxes';
+import { salesCatalystHtml } from './salesCatalyst';
 import type {
   Newsletter,
   Section,
@@ -389,6 +390,32 @@ export const TEMPLATES: NewsletterTemplate[] = [
         createSection('about'),
         createSection('footer'),
       ]),
+  },
+
+  // -------------------------------------------------------------------------
+  // Code-mode template. Instead of section blocks, this template ships a
+  // ready-made HTML newsletter (hand-authored, table-based, MSO-safe) and
+  // pins it to `htmlOverride` so the preview + export use it verbatim. The
+  // user edits it in the Code view; "Revert to sections" falls back to the
+  // scaffold sections below.
+  // -------------------------------------------------------------------------
+  {
+    key: 'salesCatalyst',
+    name: 'Sales Catalyst',
+    description: 'MahaRERA compliance as your first sales pitch — full HTML template, edit in Code mode.',
+    category: 'Marketing',
+    build: () => {
+      const nl = base('The First Sales Pitch Happens On MahaRERA', '', [
+        createSection('header'),
+        withOverrides(createSection('hero') as HeroSection, {
+          title: 'The First Sales Pitch Happens On MahaRERA',
+        }),
+        createSection('about'),
+        createSection('footer'),
+      ]);
+      nl.htmlOverride = salesCatalystHtml();
+      return nl;
+    },
   },
 ];
 
