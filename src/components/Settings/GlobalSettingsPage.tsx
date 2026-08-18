@@ -3,6 +3,7 @@ import { useNewsletterStore } from '../../store/useNewsletterStore';
 import { FieldGroup, TextField, TextAreaField, SelectField } from '../shared/FormFields';
 import { ImagePicker } from '../shared/ImagePicker';
 import { AssetManager } from './AssetManager';
+import { BrandMark } from '../shared/BrandMark';
 import type { GlobalSettings } from '../../types/newsletter';
 
 const SOCIAL_PLATFORMS: { value: GlobalSettings['social'][number]['platform']; label: string }[] = [
@@ -30,6 +31,8 @@ export function GlobalSettingsPage() {
           <button onClick={goToDashboard} className="w-9 h-9 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500">
             <ArrowLeft size={17} />
           </button>
+          <BrandMark height={30} />
+          <div className="h-7 w-px bg-gray-200" />
           <div>
             <h1 className="text-base font-bold">Global Settings</h1>
             <p className="text-xs text-gray-400">Company details that automatically populate the header logo and footer on every newsletter.</p>

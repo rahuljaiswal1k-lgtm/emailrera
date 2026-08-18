@@ -4,6 +4,7 @@ import { TEMPLATES, TEMPLATE_CATEGORY_ORDER } from '../../data/templates';
 import { Modal } from '../shared/Modal';
 import { SECTION_LABELS } from '../../data/sectionDefaults';
 import { Plus, Copy, Trash2, Settings, FileText, LayoutTemplate } from 'lucide-react';
+import { BrandMark } from '../shared/BrandMark';
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
@@ -28,13 +29,12 @@ export function Dashboard() {
       <header className="border-b border-gray-200 bg-white">
         <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-[#1D1F1F] flex items-center justify-center">
-                <div className="w-3.5 h-3.5 rounded-sm bg-[#FFDA4B]" />
-              </div>
-              <h1 className="text-lg font-bold tracking-tight">RERA Easy Newsletter Builder</h1>
+            <div className="flex items-center gap-3">
+              <BrandMark height={36} />
+              <div className="h-8 w-px bg-gray-200" />
+              <h1 className="text-lg font-bold tracking-tight">Newsletter Builder</h1>
             </div>
-            <p className="text-xs text-gray-400 mt-1 ml-10">No-code email newsletters, ready to send.</p>
+            <p className="text-xs text-gray-400 mt-1.5">No-code email newsletters, ready to send.</p>
           </div>
           <button
             onClick={goToSettings}
