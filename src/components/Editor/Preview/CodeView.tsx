@@ -11,6 +11,14 @@ import { generateHTML, previewResolver } from '../../../lib/htmlGenerator';
  * flow into the code live, and typing in the code applies back onto the
  * canvas after a short debounce.
  *
+ * Uploaded images are stored as base64 data URIs, so the raw HTML has huge
+ * `data:image/png;base64,…` blobs baked into every <img>. That drowned the
+ * textarea in unreadable base64. To keep the code readable, each unique
+ * data-URI is replaced with a short placeholder token
+ * (`data:image/png;base64,{{img:1}}`) in the textarea only. Copy, Download
+ * and the auto-apply-to-canvas flow expand the tokens back to the real
+ * data-URIs so nothing downstream loses image bytes.
+ *
  * Reality check on round-tripping: arbitrary hand-typed HTML cannot be parsed
  * back into structured sections, so once you edit the code the newsletter
  * enters "custom HTML" mode and the sidebar sections stop driving the output.
@@ -25,44 +33,55 @@ export function CodeView() {
 
   const [copied, setCopied] = useState(false);
 
-  const generated = useMemo(
+  const rawHtml = useMemo(
     () => (current ? generateHTML(current, globalSettings, previewResolver(images)) : ''),
     [current, globalSettings, images]
   );
 
   const override = current?.htmlOverride ?? null;
+  // Base HTML the textarea should track when there's no override.
+  const baseHtml = override ?? rawHtml;
+  const { display: baseDisplay, tokens: baseTokens } = useMemo(
+    () => encodeInlineImages(baseHtml),
+    [baseHtml]
+  );
 
-  // Draft is what the textarea shows. It follows `generated` when no override
-  // is active, so canvas edits flow into the code view live.
-  const [draft, setDraft] = useState(override ?? generated);
+  const [draft, setDraft] = useState(baseDisplay);
   useEffect(() => {
-    if (!override) setDraft(generated);
-  }, [generated, override]);
+    // When we're not in custom-HTML mode, keep the textarea live-synced to
+    // whatever the canvas is generating.
+    if (!override) setDraft(baseDisplay);
+  }, [baseDisplay, override]);
 
   // Debounced auto-apply: typing in the code updates the canvas ~500ms later.
-  // Skipping the initial mount avoids clobbering a fresh override on first
-  // render, and skipping identical values avoids no-op churn.
+  // The stored HTML (and the exported HTML) always contains real data URIs —
+  // tokens are a display-only convenience.
   const first = useRef(true);
   useEffect(() => {
     if (first.current) {
       first.current = false;
       return;
     }
-    if (draft === (override ?? generated)) return;
-    const t = setTimeout(() => setHtmlOverride(draft), 500);
+    if (draft === baseDisplay) return;
+    const t = setTimeout(
+      () => setHtmlOverride(decodeInlineImages(draft, baseTokens)),
+      500
+    );
     return () => clearTimeout(t);
-    // generated intentionally omitted: react only to what the user typed,
-    // not to store updates we just caused.
+    // baseDisplay/baseTokens intentionally omitted: react only to what the
+    // user typed, not to store updates we just caused.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft]);
 
   if (!current) return null;
 
-  const dirty = draft !== (override ?? generated);
+  const dirty = draft !== baseDisplay;
+  const codeToShip = decodeInlineImages(draft, baseTokens);
+  const imageCount = Object.keys(baseTokens).length;
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(draft);
+      await navigator.clipboard.writeText(codeToShip);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -71,7 +90,7 @@ export function CodeView() {
   };
 
   const download = () => {
-    const blob = new Blob([draft], { type: 'text/html' });
+    const blob = new Blob([codeToShip], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -86,10 +105,21 @@ export function CodeView() {
         <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
           Newsletter HTML
         </span>
-        <span className="text-[11px] text-gray-500">{draft.length.toLocaleString()} chars</span>
+        <span className="text-[11px] text-gray-500">
+          {codeToShip.length.toLocaleString()} chars
+        </span>
         <span className="text-[11px] text-gray-500 hidden md:inline">
           · same document as the exported <code className="text-gray-400">index.html</code>
         </span>
+        {imageCount > 0 && (
+          <span
+            className="text-[10.5px] text-gray-500 hidden md:inline"
+            title="Uploaded images are stored as base64 data URIs. They are shown here as short placeholders so the code stays readable — the real bytes are restored on Copy, Download and when your edits apply to the canvas."
+          >
+            · {imageCount} inline image{imageCount === 1 ? '' : 's'} shown as{' '}
+            <code className="text-gray-400">{'{{img:N}}'}</code>
+          </span>
+        )}
 
         <div className="ml-auto flex items-center gap-1.5">
           {dirty && !override && (
@@ -143,5 +173,49 @@ export function CodeView() {
         className="flex-1 min-h-0 w-full bg-[#1D1F1F] text-[#D6E2D6] font-mono text-[12px] leading-[19px] p-4 resize-none focus:outline-none thin-scroll"
       />
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Inline-image placeholder encoding.
+//
+// A newsletter can carry a handful of large base64 data URIs (an uploaded
+// logo, banner image, etc). Rendering those literally in the code textarea
+// buries the actual markup under thousands of lines of AAAA… noise.
+//
+// encodeInlineImages() rewrites every `data:image/…;base64,<payload>` src to
+// a short readable placeholder `data:image/…;base64,{{img:N}}` and returns
+// the payloads in a map. decodeInlineImages() reverses the substitution so
+// the version we save, copy, download and apply back to the canvas is the
+// real full-fidelity HTML. Users who don't touch the placeholders (the
+// common case — you edit the surrounding text, not the base64 blob) get
+// perfect round-tripping.
+// ---------------------------------------------------------------------------
+
+interface EncodedHtml {
+  display: string;
+  tokens: Record<string, string>; // token id -> full data URI
+}
+
+function encodeInlineImages(html: string): EncodedHtml {
+  const tokens: Record<string, string> = {};
+  const byUrl = new Map<string, string>(); // dedup identical data URIs
+  let counter = 0;
+  const display = html.replace(/data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+/g, (match) => {
+    if (byUrl.has(match)) return `data:image/placeholder;base64,{{img:${byUrl.get(match)}}}`;
+    counter += 1;
+    const id = String(counter);
+    byUrl.set(match, id);
+    tokens[id] = match;
+    return `data:image/placeholder;base64,{{img:${id}}}`;
+  });
+  return { display, tokens };
+}
+
+function decodeInlineImages(display: string, tokens: Record<string, string>): string {
+  if (!Object.keys(tokens).length) return display;
+  return display.replace(
+    /data:image\/placeholder;base64,\{\{img:(\d+)\}\}/g,
+    (whole, id: string) => tokens[id] ?? whole
   );
 }
