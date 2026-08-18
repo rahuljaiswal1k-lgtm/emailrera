@@ -1,7 +1,6 @@
 import { nanoid } from '../lib/id';
 import { createSection } from './sectionDefaults';
 import { createBox } from '../lib/blockBoxes';
-import { salesCatalystHtml } from './salesCatalyst';
 import type {
   Newsletter,
   Section,
@@ -15,6 +14,7 @@ import type {
   ListBlockSection,
   ColumnsSection,
   DividerSection,
+  ImageSection,
 } from '../types/newsletter';
 
 export type TemplateCategory =
@@ -393,29 +393,106 @@ export const TEMPLATES: NewsletterTemplate[] = [
   },
 
   // -------------------------------------------------------------------------
-  // Code-mode template. Instead of section blocks, this template ships a
-  // ready-made HTML newsletter (hand-authored, table-based, MSO-safe) and
-  // pins it to `htmlOverride` so the preview + export use it verbatim. The
-  // user edits it in the Code view; "Revert to sections" falls back to the
-  // scaffold sections below.
+  // "Sales Catalyst" — the uploaded MahaRERA compliance newsletter, rebuilt
+  // as native editable sections so every part is click-to-edit on the canvas
+  // (no htmlOverride). Not pixel-identical to the hand-authored HTML, but
+  // fully editable and it renders cleanly in Gmail / Outlook / Apple Mail.
   // -------------------------------------------------------------------------
   {
     key: 'salesCatalyst',
     name: 'Sales Catalyst',
-    description: 'MahaRERA compliance as your first sales pitch — full HTML template, edit in Code mode.',
+    description: 'MahaRERA compliance as your first sales pitch — three pillars, checklist CTA and trust panel.',
     category: 'Marketing',
-    build: () => {
-      const nl = base('The First Sales Pitch Happens On MahaRERA', '', [
+    build: () =>
+      base('The First Sales Pitch Happens On MahaRERA', '', [
         createSection('header'),
         withOverrides(createSection('hero') as HeroSection, {
           title: 'The First Sales Pitch Happens On MahaRERA',
+          subtitle: 'Before buyers trust your sales team, they trust your MahaRERA profile.',
+          showSubtitle: true,
+          backgroundColor: '#FFDA4B',
+          badge: 'COMPLIANCE & SALES',
+          description:
+            'Nearly 90% of buyers check the MahaRERA portal before making a purchase decision. Compliance is your first sales pitch.',
+        }),
+        withOverrides(createSection('image') as ImageSection, {
+          layout: 'full',
+          altText: 'A homebuyer verifying project details on the MahaRERA portal before a site visit',
+          caption: '',
+          borderRadius: 8,
+        }),
+        withOverrides(createSection('content') as ContentSection, {
+          icon: 'document',
+          heading: 'PROJECT REGISTRATION & COMPLIANCE',
+          bodyType: 'paragraph',
+          paragraph:
+            'Registering your project on MahaRERA is more than a legal formality — it is the first credibility signal buyers look for.',
+        }),
+        withOverrides(createSection('content') as ContentSection, {
+          icon: 'growth',
+          heading: 'CONSISTENT COMPLIANCE UPDATES',
+          bodyType: 'paragraph',
+          paragraph:
+            'Keeping your MahaRERA project updated by submitting mandatory filings, disclosures and project information within the prescribed timelines, so buyers can verify accurate information at any stage of their purchase journey.',
+        }),
+        withOverrides(createSection('content') as ContentSection, {
+          icon: 'legal',
+          heading: 'COMPREHENSIVE COMPLIANCE SUPPORT',
+          bodyType: 'paragraph',
+          paragraph:
+            'From project registration to quarterly compliance updates and legal documentation — every filing handled correctly, on time, under one roof.',
+        }),
+        withOverrides(createSection('boxGroup') as BoxGroupSection, {
+          heading: 'THE NUMBERS',
+          icon: 'statistics',
+          boxes: [
+            {
+              ...createBox('highlight'),
+              title: '90% of buyers',
+              text: 'visit the MahaRERA website to verify project details before making a purchase decision.',
+            },
+          ],
+        }),
+        withOverrides(createSection('listBlock') as ListBlockSection, {
+          heading: 'HOW RERA EASY HELPS',
+          icon: 'legal',
+          listStyle: 'checklist',
+          items: [
+            { id: nanoid(), title: 'Project Registration on MahaRERA', text: 'End-to-end filing, corrections and approval tracking.' },
+            { id: nanoid(), title: 'Quarterly Compliance Updates', text: 'On-time QPR filings so your project profile stays accurate.' },
+            { id: nanoid(), title: 'Ongoing MahaRERA Compliance Management', text: 'A single team for every mandatory disclosure.' },
+            { id: nanoid(), title: 'Legal & Documentation Support', text: 'Agreements, notices, orders — reviewed by domain experts.' },
+          ],
+        }),
+        withOverrides(createSection('cta') as CTASection, {
+          heading: 'Talk to a RERA Expert',
+          description: 'A short conversation is often enough to close the gap between where you are and full compliance.',
+          buttonText: 'Talk to a RERA Expert',
+          buttonUrl: 'https://www.reraeasy.com/#contact',
+          buttonColor: '#FFDA4B',
+        }),
+        withOverrides(createSection('quote') as QuoteSection, {
+          eyebrow: 'RERA EASY INSIGHT',
+          heading: '',
+          description:
+            'Compliance is more than a legal obligation — it is a catalyst for trust and sales. A consistently compliant MahaRERA profile inspires buyer confidence, strengthens credibility, and helps convert interest into bookings.',
+          backgroundColor: '#1C1C1C',
+          textColor: '#F2F2F2',
+        }),
+        withOverrides(createSection('columns') as ColumnsSection, {
+          heading: 'WHY DEVELOPERS CHOOSE RERA EASY',
+          count: 2,
+          columnStyle: 'icon',
+          columns: [
+            { id: nanoid(), icon: 'legal', title: 'Regulatory expertise', text: 'Domain specialists who work with MahaRERA every day.', imageId: null },
+            { id: nanoid(), icon: 'document', title: 'Single-window filings', text: 'Registration, QPR, legal — one team, one accountable owner.', imageId: null },
+            { id: nanoid(), icon: 'growth', title: 'Sales-linked positioning', text: 'A clean MahaRERA profile becomes part of your pitch.', imageId: null },
+            { id: nanoid(), icon: 'insight', title: 'Trusted by developers', text: '7,000+ clients, 6,000+ projects registered.', imageId: null },
+          ],
         }),
         createSection('about'),
         createSection('footer'),
-      ]);
-      nl.htmlOverride = salesCatalystHtml();
-      return nl;
-    },
+      ]),
   },
 ];
 
