@@ -42,6 +42,26 @@ const DIVIDERS: { value: DividerPosition; label: string }[] = [
   { value: 'both', label: 'Above and below' },
 ];
 
+// Email-safe font stack list mirrored from the floating format toolbar in
+// canvasEditor.ts. First value uses '' to mean "inherit / default".
+const FONTS: { value: string; label: string }[] = [
+  { value: '', label: 'Default (Arial)' },
+  { value: 'Arial,Helvetica,sans-serif', label: 'Arial' },
+  { value: 'Georgia,serif', label: 'Georgia' },
+  { value: "'Times New Roman',Times,serif", label: 'Times New Roman' },
+  { value: 'Verdana,Geneva,sans-serif', label: 'Verdana' },
+  { value: 'Tahoma,Geneva,sans-serif', label: 'Tahoma' },
+  { value: "'Trebuchet MS',sans-serif", label: 'Trebuchet MS' },
+  { value: "'Courier New',monospace", label: 'Courier New' },
+];
+
+const FONT_SCALES: { value: string; label: string }[] = [
+  { value: '1', label: 'Normal (100%)' },
+  { value: '0.85', label: 'Small (85%)' },
+  { value: '1.2', label: 'Large (120%)' },
+  { value: '1.5', label: 'Extra large (150%)' },
+];
+
 /**
  * The Design tab. Edits the shared BlockStyle, so it works for every block type
  * without any per-type code. Controls are grouped into collapsible sections
@@ -160,6 +180,30 @@ export function StyleFields({ section }: { section: Section }) {
         </div>
       </PanelGroup>
 
+      <PanelGroup title="Typography">
+        <p className="text-[11px] text-gray-400 mb-2 leading-relaxed">
+          These cascade to every text in the section. To restyle just one text (heading,
+          subtitle, body…) without changing the rest, click that text on the canvas and use the
+          floating toolbar — its overrides show up in <b>Per-field styles</b> below.
+        </p>
+        <FieldGroup label="Font family">
+          <SelectField
+            value={style.fontFamily ?? ''}
+            onChange={(fontFamily) => set({ fontFamily })}
+            options={FONTS}
+          />
+        </FieldGroup>
+        <FieldGroup label="Font size">
+          <SelectField
+            value={String(style.fontScale ?? 1)}
+            onChange={(v) => set({ fontScale: Number(v) })}
+            options={FONT_SCALES}
+          />
+        </FieldGroup>
+      </PanelGroup>
+
+      <PerFieldStyles section={section} />
+
       <PanelGroup title="Spacing">
         <FieldGroup label="Inner Padding">
           <SliderField value={style.padding} onChange={(padding) => set({ padding })} min={0} max={56} unit="px" />
@@ -190,5 +234,80 @@ export function StyleFields({ section }: { section: Section }) {
         </FieldGroup>
       </PanelGroup>
     </>
+  );
+}
+
+/**
+ * Per-field style overrides — what the floating format toolbar writes for a
+ * single element (title, subtitle, items.2 …). Lists every override the
+ * section has, lets you tweak font/colour/size from the sidebar, and clears
+ * a field's override so it falls back to the section-wide defaults above.
+ */
+function PerFieldStyles({ section }: { section: Section }) {
+  const updateFieldStyle = useNewsletterStore((s) => s.updateFieldStyle);
+  const update = useNewsletterStore((s) => s.updateSection);
+  const entries = Object.entries(section.fieldStyles ?? {});
+
+  if (entries.length === 0) {
+    return (
+      <PanelGroup title="Per-field styles">
+        <p className="text-[11px] text-gray-400 leading-relaxed">
+          Nothing overridden. Click any text in the preview and pick a font / colour / size in
+          the floating toolbar — the override will show up here so you can tweak or clear it
+          later without re-selecting the text.
+        </p>
+      </PanelGroup>
+    );
+  }
+
+  const clearAll = () => update(section.id, { fieldStyles: {} } as Partial<Section>);
+
+  return (
+    <PanelGroup title={`Per-field styles (${entries.length})`}>
+      <div className="flex justify-end mb-2">
+        <button
+          onClick={clearAll}
+          className="text-[10.5px] font-semibold text-gray-500 hover:text-gray-800 px-2 py-0.5 rounded"
+        >
+          Clear all
+        </button>
+      </div>
+      <div className="space-y-3">
+        {entries.map(([path, spec]) => (
+          <div key={path} className="rounded-xl border border-gray-200 p-3">
+            <div className="flex items-baseline justify-between mb-2">
+              <code className="text-[11px] font-mono text-gray-700 truncate">{path}</code>
+              <button
+                onClick={() => updateFieldStyle(section.id, path, { fontFamily: undefined, textColor: undefined, fontScale: undefined })}
+                className="text-[10px] font-semibold text-gray-400 hover:text-gray-700"
+              >
+                Reset
+              </button>
+            </div>
+            <FieldGroup label="Font">
+              <SelectField
+                value={spec.fontFamily ?? ''}
+                onChange={(fontFamily) => updateFieldStyle(section.id, path, { fontFamily })}
+                options={FONTS}
+              />
+            </FieldGroup>
+            <FieldGroup label="Size">
+              <SelectField
+                value={String(spec.fontScale ?? 1)}
+                onChange={(v) => updateFieldStyle(section.id, path, { fontScale: Number(v) })}
+                options={FONT_SCALES}
+              />
+            </FieldGroup>
+            <FieldGroup label="Colour">
+              <ColorField
+                value={spec.textColor ?? ''}
+                onChange={(textColor) => updateFieldStyle(section.id, path, { textColor })}
+                allowEmpty
+              />
+            </FieldGroup>
+          </div>
+        ))}
+      </div>
+    </PanelGroup>
   );
 }
