@@ -251,8 +251,8 @@ export function createSection(type: SectionType): Section {
         visible: true,
         heading: 'WHY DEVELOPERS CHOOSE RERA EASY',
         metrics: [
+          makeMetric('20,000+', 'QPRs'),
           makeMetric('7,000+', 'Clients Served'),
-          makeMetric('6,000+', 'Projects Registered'),
           makeMetric('12%~', 'Market Presence'),
           makeMetric('150+', 'Professionals'),
         ],

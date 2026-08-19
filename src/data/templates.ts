@@ -479,17 +479,7 @@ export const TEMPLATES: NewsletterTemplate[] = [
           backgroundColor: '#1C1C1C',
           textColor: '#F2F2F2',
         }),
-        withOverrides(createSection('columns') as ColumnsSection, {
-          heading: 'WHY DEVELOPERS CHOOSE RERA EASY',
-          count: 2,
-          columnStyle: 'icon',
-          columns: [
-            { id: nanoid(), icon: 'legal', title: 'Regulatory expertise', text: 'Domain specialists who work with MahaRERA every day.', imageId: null },
-            { id: nanoid(), icon: 'document', title: 'Single-window filings', text: 'Registration, QPR, legal — one team, one accountable owner.', imageId: null },
-            { id: nanoid(), icon: 'growth', title: 'Sales-linked positioning', text: 'A clean MahaRERA profile becomes part of your pitch.', imageId: null },
-            { id: nanoid(), icon: 'insight', title: 'Trusted by developers', text: '7,000+ clients, 6,000+ projects registered.', imageId: null },
-          ],
-        }),
+        createSection('stats'),
         createSection('about'),
         createSection('footer'),
       ]),
