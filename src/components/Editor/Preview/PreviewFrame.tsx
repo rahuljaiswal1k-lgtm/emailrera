@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useRef, useState } from 'react';
-import { Monitor, Smartphone, Eye, Code2 } from 'lucide-react';
+import { Monitor, Smartphone, Eye, Code2, AlertTriangle } from 'lucide-react';
 import { useNewsletterStore } from '../../../store/useNewsletterStore';
 import { generateHTML, previewResolver } from '../../../lib/htmlGenerator';
 import { sanitizeRich } from '../../../lib/htmlEscape';
@@ -29,12 +29,14 @@ export function PreviewFrame() {
   const updateSectionField = useNewsletterStore((s) => s.updateSectionField);
   const updateSection = useNewsletterStore((s) => s.updateSection);
   const updateGlobalField = useNewsletterStore((s) => s.updateGlobalField);
+  const setHtmlOverride = useNewsletterStore((s) => s.setHtmlOverride);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [mode, setMode] = useState<'design' | 'code'>('design');
 
-  const html = useMemo(() => {
+  // The freshest HTML the generator can produce right now.
+  const nextHtml = useMemo(() => {
     if (!current) return '';
     // Custom HTML from Code mode wins, and is shown without the editing layer
     // since there are no addressable sections in hand-written markup.
@@ -46,13 +48,30 @@ export function PreviewFrame() {
     return generateHTML(current, globalSettings, previewResolver(images), { interactive: true });
   }, [current, images, globalSettings]);
 
+  // The HTML actually wired into the iframe's `srcDoc`. This lags `nextHtml`
+  // on purpose: canvas-sourced edits (contenteditable text, toolbar formatting
+  // etc.) already patched the iframe's DOM in place; recomputing the srcDoc
+  // would then reload the whole iframe, blowing away the in-progress edit
+  // session and eating fast follow-up clicks. `skipReloadRef.current` is set
+  // by the canvas message handler for those "canvas already did it" cases so
+  // we swallow just that one re-render.
+  const [committedHtml, setCommittedHtml] = useState('');
+  const skipReloadRef = useRef(false);
+  useEffect(() => {
+    if (skipReloadRef.current) {
+      skipReloadRef.current = false;
+      return;
+    }
+    setCommittedHtml(nextHtml);
+  }, [nextHtml]);
+
   // Push selection into the frame without re-rendering it.
   useEffect(() => {
     iframeRef.current?.contentWindow?.postMessage(
       { source: 'nl-editor', type: 'setSelected', id: selectedSectionId },
       '*'
     );
-  }, [selectedSectionId, html]);
+  }, [selectedSectionId, committedHtml]);
 
   // Messages from the in-canvas editing layer.
   useEffect(() => {
@@ -72,13 +91,21 @@ export function PreviewFrame() {
       // Paths prefixed "__global." target Global Settings (e.g. office labels /
       // addresses / legal text that appear inside the Footer block but live on
       // the settings object shared across every newsletter).
+      //
+      // The canvas already updated its own DOM in place (contenteditable did
+      // the visual change); skip the srcDoc reload so the active edit session
+      // survives.
       if (msg.type === 'edit') {
         const clean = sanitizeRich(msg.value);
+        skipReloadRef.current = true;
         if (msg.path.startsWith('__global.')) return updateGlobalField(msg.path.slice('__global.'.length), clean);
         return updateSectionField(msg.id, msg.path, clean);
       }
 
       // Formatting from the floating toolbar maps onto the block's BlockStyle.
+      // Font family / alignment / colour / scale are wrapper-style changes,
+      // so we DO let the iframe reload to pick them up — otherwise the
+      // dropdown would appear to do nothing.
       if (msg.type === 'format') {
         const sec = useNewsletterStore.getState().current?.sections.find((x) => x.id === msg.id);
         if (!sec) return;
@@ -177,10 +204,26 @@ export function PreviewFrame() {
         <CodeView />
       ) : (
       <div className="flex-1 overflow-y-auto thin-scroll py-8 px-4">
+        {current.htmlOverride && (
+          <div className="mx-auto max-w-3xl mb-3 flex items-start gap-2 px-4 py-2.5 rounded-lg bg-amber-500/15 border border-amber-500/30">
+            <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-[11.5px] text-amber-900 leading-relaxed flex-1">
+              <b>Custom HTML is active.</b> The canvas is showing hand-edited code from the Code
+              view, so click-to-edit and drag-to-reorder are frozen. Switch back to structured
+              sections to edit visually — your sections are still saved.
+            </p>
+            <button
+              onClick={() => setHtmlOverride(null)}
+              className="text-[11px] font-semibold text-amber-900 hover:text-amber-700 px-2 py-1 rounded hover:bg-amber-500/10"
+            >
+              Revert to sections
+            </button>
+          </div>
+        )}
         <iframe
           ref={iframeRef}
           title="Newsletter preview"
-          srcDoc={html}
+          srcDoc={committedHtml}
           className="mx-auto block bg-white shadow-lg rounded-lg transition-[width] duration-200"
           style={{ width: frameWidth, minHeight: 800, border: 'none' }}
           onLoad={(e) => {

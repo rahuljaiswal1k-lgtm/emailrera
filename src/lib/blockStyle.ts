@@ -325,12 +325,17 @@ export function wrapBlock(inner: string, style: BlockStyle): string {
   const radiusCss = style.borderRadius > 0 ? `border-radius:${style.borderRadius}px;` : '';
   const paddingCss = style.padding > 0 ? `padding:${style.padding}px;` : '';
 
-  // Font family / scale cascade to every descendant of the block.
-  const fontCss = style.fontFamily ? `font-family:${style.fontFamily};` : '';
+  // Font family / align cascade to every descendant of the block. The
+  // `!important` matters because most per-element renderers ship with their
+  // own inline `font-family:Arial…;text-align:left;` — without it, changing
+  // the block font or alignment from the format toolbar would have no
+  // visible effect. Inline `!important` is safe for email clients.
+  const fontCss = style.fontFamily ? `font-family:${style.fontFamily} !important;` : '';
+  const alignCss = `text-align:${style.align} !important;`;
   const scale = style.fontScale && style.fontScale !== 1 ? `font-size:${Math.round(style.fontScale * 100)}%;` : '';
 
   const card = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="${t.bgCss}${t.borderCss}${radiusCss}${shadowCss}${fontCss}">
-    <tr><td style="${paddingCss}color:${t.text};text-align:${style.align};${fontCss}${scale}">${inner}</td></tr>
+    <tr><td style="${paddingCss}color:${t.text};${alignCss}${fontCss}${scale}">${inner}</td></tr>
   </table>`;
 
   // maxWidth < 100 centers a narrower column inside the 640px content area.

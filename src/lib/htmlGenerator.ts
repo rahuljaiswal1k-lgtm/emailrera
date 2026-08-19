@@ -1250,8 +1250,25 @@ export function generateHTML(
     if (!raw) return;
     // In preview mode each section gets an addressable wrapper so the canvas
     // can outline it, select it and drag it. Absent from the export.
+    //
+    // We also inject a tiny scoped <style> block that forces the block's
+    // fontFamily / textAlign onto every descendant with `!important`. This
+    // is what makes the floating format toolbar's Font and Align controls
+    // actually take effect — inline `font-family:Arial…` on inner elements
+    // beats a parent's inline style otherwise, per the CSS cascade.
+    const bs = styleForType(s.type, s.style);
+    const overrides: string[] = [];
+    if (bs.fontFamily && bs.fontFamily !== EMAIL_FONT) {
+      overrides.push(`font-family:${bs.fontFamily} !important;`);
+    }
+    if (bs.align && bs.align !== 'left') {
+      overrides.push(`text-align:${bs.align} !important;`);
+    }
+    const scopedStyle = interactive && overrides.length
+      ? `<style>[${CANVAS_ATTR}="${s.id}"] *{${overrides.join('')}}</style>`
+      : '';
     const html = interactive
-      ? `<div ${CANVAS_ATTR}="${s.id}" data-nl-label="${esc(SECTION_LABELS[s.type] ?? s.type)}">${raw}</div>`
+      ? `<div ${CANVAS_ATTR}="${s.id}" data-nl-label="${esc(SECTION_LABELS[s.type] ?? s.type)}">${scopedStyle}${raw}</div>`
       : raw;
     if (styleForType(s.type, s.style).fullBleed) {
       flushPadded();

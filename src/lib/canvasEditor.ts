@@ -292,10 +292,23 @@ export function canvasScript(): string {
       bar.style.left = Math.max(6, Math.min(r.left, window.innerWidth - bar.offsetWidth - 6)) + 'px';
     }
 
+    // Normalise <span> nodes execCommand leaves behind (mainly hiliteColor)
+    // into whitelisted <mark> tags so sanitizeRich keeps them.
+    function normaliseSpans(el) {
+      var spans = el.querySelectorAll('span[style*="background-color"], span[style*="background"]');
+      for (var i = 0; i < spans.length; i++) {
+        var sp = spans[i];
+        var mark = document.createElement('mark');
+        while (sp.firstChild) mark.appendChild(sp.firstChild);
+        sp.parentNode.replaceChild(mark, sp);
+      }
+    }
+
     function commit() {
       if (!editing) return;
       var host = editing.closest('[' + ATTR + ']');
       if (!host) return;
+      normaliseSpans(editing);
       post({
         type: 'edit',
         id: id(host),

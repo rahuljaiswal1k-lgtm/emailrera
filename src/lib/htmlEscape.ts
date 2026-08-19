@@ -32,12 +32,29 @@ export function rich(str: string): string {
     .replace(/\n/g, '<br>');
 }
 
-/** Strip everything except the inline whitelist — used when saving canvas edits. */
+/**
+ * Strip everything except the inline whitelist — used when saving canvas
+ * edits. Two things happen before the strip:
+ *
+ *  - Any `<span style="…background-color:…">` (what `execCommand('hiliteColor')`
+ *    produces for the highlight button) is normalised to `<mark>` so it isn't
+ *    silently discarded.
+ *  - `<div>` / `<p>` from paste-in-contenteditable are turned into a `<br>`
+ *    boundary so line breaks survive.
+ *
+ * We do NOT collapse runs of whitespace or trim — a user typing two spaces
+ * or leaving a trailing space in a field expects that to be kept.
+ */
 export function sanitizeRich(html: string): string {
   return (html ?? '')
+    .replace(
+      /<span\b[^>]*background-color\s*:[^>]*>([\s\S]*?)<\/span>/gi,
+      '<mark>$1</mark>'
+    )
+    .replace(/<\/(?:div|p)>/gi, '<br>')
+    .replace(/<(?:div|p)\b[^>]*>/gi, '')
     .replace(/<(?!\/?(?:b|i|u|s|strong|em|mark|br)\b)[^>]*>/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+    .replace(/(<br>\s*){3,}/gi, '<br><br>');
 }
 
 /** Relative luminance test used to pick readable text on a colored surface. */
