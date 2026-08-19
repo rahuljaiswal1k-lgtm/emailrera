@@ -278,7 +278,7 @@ function PerFieldStyles({ section }: { section: Section }) {
             <div className="flex items-baseline justify-between mb-2">
               <code className="text-[11px] font-mono text-gray-700 truncate">{path}</code>
               <button
-                onClick={() => updateFieldStyle(section.id, path, { fontFamily: undefined, textColor: undefined, fontScale: undefined })}
+                onClick={() => updateFieldStyle(section.id, path, { fontFamily: undefined, textColor: undefined, fontScale: undefined, align: undefined })}
                 className="text-[10px] font-semibold text-gray-400 hover:text-gray-700"
               >
                 Reset
@@ -303,6 +303,13 @@ function PerFieldStyles({ section }: { section: Section }) {
                 value={spec.textColor ?? ''}
                 onChange={(textColor) => updateFieldStyle(section.id, path, { textColor })}
                 allowEmpty
+              />
+            </FieldGroup>
+            <FieldGroup label="Alignment">
+              <SelectField
+                value={spec.align ?? ''}
+                onChange={(v) => updateFieldStyle(section.id, path, { align: (v || undefined) as 'left' | 'center' | 'right' | undefined })}
+                options={[{ value: '', label: 'Default (inherit)' }, ...ALIGNS]}
               />
             </FieldGroup>
           </div>

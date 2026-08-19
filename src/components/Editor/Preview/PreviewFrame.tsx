@@ -103,24 +103,18 @@ export function PreviewFrame() {
         return updateSectionField(msg.id, msg.path, clean);
       }
 
-      // Formatting from the floating toolbar. Alignment applies to the whole
-      // section (that's how it reads visually). Font / colour / size are
-      // scoped to the specific field the user was editing (data-nl-edit path)
-      // so tweaking the hero heading doesn't also change the subtitle or the
-      // description.
+      // Formatting from the floating toolbar. Font / colour / size / align
+      // are all scoped to the specific field the user was editing
+      // (data-nl-edit path) so aligning the hero heading right doesn't drag
+      // the subtitle and description with it. When no field path is present
+      // (rare — toolbar fired with no active element) we fall back to the
+      // whole-section style.
       if (msg.type === 'format') {
-        if (msg.key === 'align') {
-          const sec = useNewsletterStore.getState().current?.sections.find((x) => x.id === msg.id);
-          if (!sec) return;
-          const style = { ...styleForType(sec.type, sec.style) };
-          style.align = msg.value as typeof style.align;
-          updateSection(msg.id, { style } as never);
-          return;
-        }
         if (msg.path) {
           if (msg.key === 'fontFamily') updateFieldStyle(msg.id, msg.path, { fontFamily: msg.value });
           else if (msg.key === 'textColor') updateFieldStyle(msg.id, msg.path, { textColor: msg.value });
           else if (msg.key === 'fontScale') updateFieldStyle(msg.id, msg.path, { fontScale: msg.value ? Number(msg.value) : undefined });
+          else if (msg.key === 'align') updateFieldStyle(msg.id, msg.path, { align: msg.value as 'left' | 'center' | 'right' });
           return;
         }
         // No editing field (rare — e.g. toolbar fired while no element was
@@ -131,6 +125,7 @@ export function PreviewFrame() {
         if (msg.key === 'fontFamily') style.fontFamily = msg.value;
         else if (msg.key === 'fontScale') style.fontScale = msg.value ? Number(msg.value) : 1;
         else if (msg.key === 'textColor') style.textColor = msg.value;
+        else if (msg.key === 'align') style.align = msg.value as typeof style.align;
         updateSection(msg.id, { style } as never);
         return;
       }

@@ -1279,6 +1279,7 @@ export function generateHTML(
       const spec = fs[path];
       if (spec.fontFamily) decls.push(`font-family:${spec.fontFamily} !important;`);
       if (spec.textColor) decls.push(`color:${spec.textColor} !important;`);
+      if (spec.align) decls.push(`text-align:${spec.align} !important;`);
       // Font-size uses `zoom` for the preview: the element's parent td often
       // has font-size:0 (a common email-HTML whitespace trick), so an em/%
       // multiplier would compute to zero. `zoom` scales visually and is

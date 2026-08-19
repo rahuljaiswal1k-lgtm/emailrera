@@ -71,6 +71,7 @@ export interface FieldStyle {
   textColor?: string;
   /** Multiplier for the element's own font-size. 1.0 = default. */
   fontScale?: number;
+  align?: 'left' | 'center' | 'right';
 }
 
 /** Section Type 1 — Hero Section */

@@ -266,7 +266,12 @@ export function canvasScript(): string {
           document.execCommand(cmd, false, null);
         } else if (align) {
           var host = editing.closest('[' + ATTR + ']');
-          if (host) post({ type: 'format', id: id(host), key: 'align', value: align });
+          if (!host) return;
+          // Scope alignment to the current field (title / subtitle / items.2 …)
+          // so aligning the heading right doesn't drag the paragraph and
+          // bullets with it.
+          var path = editing.getAttribute('data-nl-edit') || undefined;
+          post({ type: 'format', id: id(host), key: 'align', value: align, path: path });
           return;
         }
         commit();
