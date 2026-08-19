@@ -37,41 +37,64 @@ export function BrandMark({ height = 32 }: { height?: number }) {
 }
 
 function BrandMarkFallback({ height }: { height: number }) {
-  // Design: yellow stylised building on the left of a "RERA Easy" wordmark.
-  const width = Math.round(height * 4.5); // aspect ratio ~4.5:1
+  // Hand-drawn approximation of the real RERA Easy™ logo, so every browser
+  // sees a proper brand mark even before a logo file is uploaded in Brand
+  // Assets. The mark: layered yellow skyscraper (short left tower + tall
+  // main tower with two window dots + a short right tower), a black ground
+  // arc / swoosh underneath, "RERA" in bold yellow, "Easy" in bold black
+  // italic, "TM" in a black circle at the top-right of the wordmark.
+  const width = Math.round(height * 4.4);
   return (
     <svg
-      viewBox="0 0 180 40"
+      viewBox="0 0 220 50"
       width={width}
       height={height}
       xmlns="http://www.w3.org/2000/svg"
       style={{ display: 'block' }}
       aria-label="RERA Easy"
     >
-      {/* Stylised building — nods at the real logo without copying it. */}
+      {/* --- Building group --- */}
       <g fill="#FFDA4B">
-        <rect x="6" y="14" width="8" height="20" rx="1" />
-        <path d="M14 8 L26 14 L26 34 L14 34 Z" />
-        <rect x="18" y="18" width="3" height="3" fill="#1D1F1F" />
-        <rect x="18" y="24" width="3" height="3" fill="#1D1F1F" />
-        <path d="M26 12 L34 18 L34 34 L26 34 Z" />
-        <rect x="28.5" y="21" width="3" height="3" fill="#1D1F1F" />
-        <rect x="28.5" y="27" width="3" height="3" fill="#1D1F1F" />
+        {/* Short left tower */}
+        <path d="M10 21 L10 40 L20 40 L20 15 Z" />
+        {/* Small window on the left tower */}
+        <rect x="12.5" y="24" width="2.4" height="2.4" fill="#FFFFFF" />
+        {/* Chevron / arrow-shaped middle tower — three stacked chevrons */}
+        <path d="M22 13 L30 17 L30 40 L22 40 Z" />
+        <path d="M22 20 L30 24 L30 27 L22 23 Z" fill="#FFFFFF" opacity="0.85" />
+        <path d="M22 27 L30 31 L30 34 L22 30 Z" fill="#FFFFFF" opacity="0.85" />
+        {/* Tall right tower with a subtle right edge */}
+        <path d="M31 6 L40 12 L40 40 L31 40 Z" />
+        <path d="M40 12 L43 14 L43 40 L40 40 Z" fill="#E8C63F" />
       </g>
-      {/* Ground arc */}
+      {/* Two small windows on the low ground line under the building */}
+      <g fill="#FFDA4B">
+        <rect x="21" y="43" width="3" height="3" />
+        <rect x="27" y="43" width="3" height="3" />
+      </g>
+      {/* Black ground arc / swoosh */}
       <path
-        d="M4 36 Q 22 40 40 36"
+        d="M4 47 Q 26 51 52 46"
         stroke="#1D1F1F"
-        strokeWidth="1.4"
+        strokeWidth="1.8"
         fill="none"
         strokeLinecap="round"
       />
-      {/* Wordmark */}
+      <path
+        d="M8 49 Q 28 52 48 49"
+        stroke="#1D1F1F"
+        strokeWidth="1"
+        fill="none"
+        strokeLinecap="round"
+        opacity="0.6"
+      />
+
+      {/* --- Wordmark --- */}
       <text
-        x="46"
-        y="28"
+        x="60"
+        y="36"
         fontFamily="'Segoe UI', Arial, Helvetica, sans-serif"
-        fontSize="22"
+        fontSize="28"
         fontWeight="800"
         fill="#FFDA4B"
         letterSpacing="0.5"
@@ -79,24 +102,24 @@ function BrandMarkFallback({ height }: { height: number }) {
         RERA
       </text>
       <text
-        x="112"
-        y="28"
+        x="138"
+        y="36"
         fontFamily="'Segoe UI', Arial, Helvetica, sans-serif"
-        fontSize="22"
+        fontSize="24"
         fontWeight="800"
-        fill="#1D1F1F"
         fontStyle="italic"
+        fill="#1D1F1F"
       >
         Easy
       </text>
-      {/* TM mark */}
-      <circle cx="163" cy="11" r="5" fill="none" stroke="#1D1F1F" strokeWidth="1" />
+      {/* TM inside a black circle, sitting at the top-right corner */}
+      <circle cx="199" cy="14" r="6" fill="none" stroke="#1D1F1F" strokeWidth="1.2" />
       <text
-        x="163"
-        y="14"
+        x="199"
+        y="17"
         textAnchor="middle"
         fontFamily="Arial, Helvetica, sans-serif"
-        fontSize="6"
+        fontSize="7"
         fontWeight="700"
         fill="#1D1F1F"
       >
