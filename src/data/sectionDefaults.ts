@@ -26,6 +26,7 @@ import type {
   ImageBannerSection,
   FooterSection,
   HeaderSection,
+  ParagraphSection,
 } from '../types/newsletter';
 import { DEFAULT_BLOCK_STYLE, CARD_BLOCK_STYLE, FULL_BLEED_BLOCK_STYLE } from '../lib/blockStyle';
 import { RADIUS } from '../lib/designTokens';
@@ -56,6 +57,7 @@ export const SECTION_LABELS: Record<SectionType, string> = {
   imageBanner: 'Image Banner',
   footer: 'Footer',
   header: 'Header',
+  paragraph: 'Paragraph',
 };
 
 export type BlockCategory = 'Basics' | 'Content' | 'Callouts' | 'Media' | 'Data' | 'Conversion' | 'Layout';
@@ -86,6 +88,7 @@ export interface BlockCatalogEntry {
  */
 export const BLOCK_CATALOG: BlockCatalogEntry[] = [
   { type: 'hero', category: 'Basics', description: 'Big title banner at the top', keywords: ['title', 'headline', 'banner'] },
+  { type: 'paragraph', category: 'Basics', description: 'A single rich-text paragraph — bullets, numbers, formatting, no extras', keywords: ['paragraph', 'text', 'prose', 'body', 'copy', 'list', 'bullets', 'numbered'] },
   { type: 'textBlock', category: 'Basics', description: 'Heading, subheading, badge and body copy', keywords: ['section header', 'paragraph', 'title', 'eyebrow', 'badge'] },
   { type: 'divider', category: 'Layout', description: 'Line, dots, labelled rule or plain spacing', keywords: ['separator', 'spacer', 'rule', 'gap'] },
 
@@ -508,5 +511,13 @@ export function createSection(type: SectionType): Section {
         tagline: '',
         backgroundColor: '',
       } satisfies HeaderSection;
+
+    case 'paragraph':
+      return {
+        id,
+        type,
+        visible: true,
+        body: 'Write your paragraph here. Click into the text on the canvas to edit it — the floating toolbar has bold, italic, highlight, bullet list, numbered list, alignment, font, size and colour.',
+      } satisfies ParagraphSection;
   }
 }

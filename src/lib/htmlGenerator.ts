@@ -26,6 +26,7 @@ import type {
   ImageBannerSection,
   FooterSection,
   HeaderSection,
+  ParagraphSection,
   HeroLayout,
 } from '../types/newsletter';
 import { getIcon } from '../data/icons';
@@ -1166,9 +1167,15 @@ function renderSectionInner(section: Section, settings: GlobalSettings, resolve:
       return renderCtaBanner(section, resolve);
     case 'imageBanner':
       return renderImageBanner(section, resolve);
+    case 'paragraph':
+      return renderParagraph(section, t);
     default:
       return '';
   }
+}
+
+function renderParagraph(s: ParagraphSection, t: ThemeTokens): string {
+  return `<div${ed('body')} style="margin:0;font-family:${FONT};font-size:${TYPE.body.size}px;line-height:${TYPE.body.lh}px;color:${t.text};">${rich(s.body)}</div>`;
 }
 
 /**

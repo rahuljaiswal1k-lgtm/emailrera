@@ -34,7 +34,8 @@ export type SectionType =
   | 'ctaBanner'
   | 'imageBanner'
   | 'footer'
-  | 'header';
+  | 'header'
+  | 'paragraph';
 
 export interface BaseSection {
   id: string;
@@ -413,6 +414,18 @@ export interface CtaBannerSection extends BaseSection {
   layout: 'centered' | 'split';
 }
 
+/**
+ * A dead-simple prose block — one rich-text paragraph, nothing else. Sits
+ * between the section-heavy TextBlock (eyebrow / badge / heading / body /
+ * divider) and just typing free-form. Bullet lists and numbered lists
+ * created inline in the editor land here as <ul>/<ol>/<li>, which the
+ * inline sanitizer now allows.
+ */
+export interface ParagraphSection extends BaseSection {
+  type: 'paragraph';
+  body: string;
+}
+
 export interface ImageBannerSection extends BaseSection {
   type: 'imageBanner';
   imageId: string | null;
@@ -448,7 +461,8 @@ export type Section =
   | CtaBannerSection
   | ImageBannerSection
   | FooterSection
-  | HeaderSection;
+  | HeaderSection
+  | ParagraphSection;
 
 // ============================================================================
 // Newsletter (a saved project)

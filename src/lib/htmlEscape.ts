@@ -23,7 +23,7 @@ export function nl2br(str: string): string {
  * edited in the canvas can carry bold / italic / underline / highlight without
  * ever letting arbitrary HTML through. Newlines become <br>.
  */
-const INLINE_TAGS = 'b|i|u|s|strong|em|mark|br';
+const INLINE_TAGS = 'b|i|u|s|strong|em|mark|br|ul|ol|li';
 
 export function rich(str: string): string {
   return esc(str ?? '')
@@ -51,9 +51,14 @@ export function sanitizeRich(html: string): string {
       /<span\b[^>]*background-color\s*:[^>]*>([\s\S]*?)<\/span>/gi,
       '<mark>$1</mark>'
     )
+    // Lists produced by execCommand('insertUnorderedList' / 'insertOrderedList')
+    // must survive whole; only strip their style/class attributes.
+    .replace(/<(ul|ol|li)\b[^>]*>/gi, '<$1>')
+    // <div>/<p> from paste-in-contenteditable become <br> boundaries so line
+    // breaks land in the store.
     .replace(/<\/(?:div|p)>/gi, '<br>')
     .replace(/<(?:div|p)\b[^>]*>/gi, '')
-    .replace(/<(?!\/?(?:b|i|u|s|strong|em|mark|br)\b)[^>]*>/gi, '')
+    .replace(/<(?!\/?(?:b|i|u|s|strong|em|mark|br|ul|ol|li)\b)[^>]*>/gi, '')
     .replace(/(<br>\s*){3,}/gi, '<br><br>');
 }
 

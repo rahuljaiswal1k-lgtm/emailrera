@@ -78,6 +78,14 @@ export function canvasStyles(): string {
     [data-nl-edit][contenteditable="true"] {
       box-shadow: inset 0 0 0 2px #FFDA4B; border-radius: 3px; background: rgba(255,218,75,.10);
     }
+    /* Bullet + numbered lists produced by the toolbar. Table-based email
+       HTML strips the default UA styling of <ul>/<ol> and I don't want to
+       fight the reset globally, so lists inside editable text get sensible
+       inline defaults here. */
+    [data-nl-edit] ul, [data-nl-edit] ol { margin: 4px 0 4px 22px; padding: 0; }
+    [data-nl-edit] ul { list-style: disc; }
+    [data-nl-edit] ol { list-style: decimal; }
+    [data-nl-edit] li { margin: 2px 0; }
 
     #nl-fmt {
       position: fixed; z-index: 90; display: none; gap: 2px; align-items: center;
@@ -242,9 +250,13 @@ export function canvasScript(): string {
         '<button data-cmd="underline" title="Underline"><u>U</u></button>' +
         '<button data-cmd="mark" title="Highlight">&#9646;</button>' +
         '<span class="sep"></span>' +
+        '<button data-cmd="insertUnorderedList" title="Bullet list">&bull; &bull;</button>' +
+        '<button data-cmd="insertOrderedList" title="Numbered list">1.</button>' +
+        '<span class="sep"></span>' +
         '<button data-align="left" title="Align left">&#8676;</button>' +
         '<button data-align="center" title="Align center">&#8596;</button>' +
         '<button data-align="right" title="Align right">&#8677;</button>' +
+        '<button data-align="justify" title="Justify">&#8801;</button>' +
         '<span class="sep"></span>' +
         '<input type="color" data-fmt="colour" title="Text colour" value="#1D1F1F">';
       document.body.appendChild(bar);
