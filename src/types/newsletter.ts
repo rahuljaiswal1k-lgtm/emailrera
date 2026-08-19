@@ -56,6 +56,21 @@ export interface BaseSection {
   colorLabel?: string;
   /** Sidebar-only: collapsed in the section list. */
   collapsed?: boolean;
+  /**
+   * Per-field style overrides — keyed by the dotted `data-nl-edit` path
+   * (e.g. "title", "subtitle", "items.2"). Populated by the floating format
+   * toolbar so a font / colour / size change on the hero heading does NOT
+   * leak into the hero subtitle, description, etc. Unset fields fall back
+   * to the block-wide style / block defaults.
+   */
+  fieldStyles?: Record<string, FieldStyle>;
+}
+
+export interface FieldStyle {
+  fontFamily?: string;
+  textColor?: string;
+  /** Multiplier for the element's own font-size. 1.0 = default. */
+  fontScale?: number;
 }
 
 /** Section Type 1 — Hero Section */

@@ -1251,22 +1251,44 @@ export function generateHTML(
     // In preview mode each section gets an addressable wrapper so the canvas
     // can outline it, select it and drag it. Absent from the export.
     //
-    // We also inject a tiny scoped <style> block that forces the block's
-    // fontFamily / textAlign onto every descendant with `!important`. This
-    // is what makes the floating format toolbar's Font and Align controls
-    // actually take effect — inline `font-family:Arial…` on inner elements
-    // beats a parent's inline style otherwise, per the CSS cascade.
+    // Tiny scoped <style> block that forces the block-wide font/align and any
+    // per-field overrides from `fieldStyles` onto their target elements with
+    // `!important`. Stylesheet !important beats element inline styles (which
+    // is what per-element `font-family:Arial…;font-size:22px;` inline defeats
+    // otherwise), so the floating format toolbar's changes actually stick.
+    //
+    // Per-field styling — e.g. change the hero heading font to Georgia
+    // without touching the hero subtitle — is scoped to
+    // `[data-nl-section="ID"] [data-nl-edit="PATH"]`. Font-size uses `em`
+    // so it multiplies the element's own font-size rather than replacing it.
     const bs = styleForType(s.type, s.style);
-    const overrides: string[] = [];
+    const rules: string[] = [];
+    const wholeSection: string[] = [];
     if (bs.fontFamily && bs.fontFamily !== EMAIL_FONT) {
-      overrides.push(`font-family:${bs.fontFamily} !important;`);
+      wholeSection.push(`font-family:${bs.fontFamily} !important;`);
     }
     if (bs.align && bs.align !== 'left') {
-      overrides.push(`text-align:${bs.align} !important;`);
+      wholeSection.push(`text-align:${bs.align} !important;`);
     }
-    const scopedStyle = interactive && overrides.length
-      ? `<style>[${CANVAS_ATTR}="${s.id}"] *{${overrides.join('')}}</style>`
-      : '';
+    if (wholeSection.length) {
+      rules.push(`[${CANVAS_ATTR}="${s.id}"] *{${wholeSection.join('')}}`);
+    }
+    const fs = s.fieldStyles ?? {};
+    for (const path of Object.keys(fs)) {
+      const decls: string[] = [];
+      const spec = fs[path];
+      if (spec.fontFamily) decls.push(`font-family:${spec.fontFamily} !important;`);
+      if (spec.textColor) decls.push(`color:${spec.textColor} !important;`);
+      // Font-size uses `zoom` for the preview: the element's parent td often
+      // has font-size:0 (a common email-HTML whitespace trick), so an em/%
+      // multiplier would compute to zero. `zoom` scales visually and is
+      // supported everywhere the preview runs (Chromium/WebKit).
+      if (spec.fontScale && spec.fontScale !== 1) decls.push(`zoom:${spec.fontScale} !important;`);
+      if (decls.length) {
+        rules.push(`[${CANVAS_ATTR}="${s.id}"] [data-nl-edit="${path}"]{${decls.join('')}}`);
+      }
+    }
+    const scopedStyle = interactive && rules.length ? `<style>${rules.join('')}</style>` : '';
     const html = interactive
       ? `<div ${CANVAS_ATTR}="${s.id}" data-nl-label="${esc(SECTION_LABELS[s.type] ?? s.type)}">${scopedStyle}${raw}</div>`
       : raw;

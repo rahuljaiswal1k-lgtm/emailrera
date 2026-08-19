@@ -30,6 +30,7 @@ export function PreviewFrame() {
   const updateSection = useNewsletterStore((s) => s.updateSection);
   const updateGlobalField = useNewsletterStore((s) => s.updateGlobalField);
   const setHtmlOverride = useNewsletterStore((s) => s.setHtmlOverride);
+  const updateFieldStyle = useNewsletterStore((s) => s.updateFieldStyle);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
@@ -102,16 +103,32 @@ export function PreviewFrame() {
         return updateSectionField(msg.id, msg.path, clean);
       }
 
-      // Formatting from the floating toolbar maps onto the block's BlockStyle.
-      // Font family / alignment / colour / scale are wrapper-style changes,
-      // so we DO let the iframe reload to pick them up — otherwise the
-      // dropdown would appear to do nothing.
+      // Formatting from the floating toolbar. Alignment applies to the whole
+      // section (that's how it reads visually). Font / colour / size are
+      // scoped to the specific field the user was editing (data-nl-edit path)
+      // so tweaking the hero heading doesn't also change the subtitle or the
+      // description.
       if (msg.type === 'format') {
+        if (msg.key === 'align') {
+          const sec = useNewsletterStore.getState().current?.sections.find((x) => x.id === msg.id);
+          if (!sec) return;
+          const style = { ...styleForType(sec.type, sec.style) };
+          style.align = msg.value as typeof style.align;
+          updateSection(msg.id, { style } as never);
+          return;
+        }
+        if (msg.path) {
+          if (msg.key === 'fontFamily') updateFieldStyle(msg.id, msg.path, { fontFamily: msg.value });
+          else if (msg.key === 'textColor') updateFieldStyle(msg.id, msg.path, { textColor: msg.value });
+          else if (msg.key === 'fontScale') updateFieldStyle(msg.id, msg.path, { fontScale: msg.value ? Number(msg.value) : undefined });
+          return;
+        }
+        // No editing field (rare — e.g. toolbar fired while no element was
+        // active): fall back to whole-section style so the change isn't lost.
         const sec = useNewsletterStore.getState().current?.sections.find((x) => x.id === msg.id);
         if (!sec) return;
         const style = { ...styleForType(sec.type, sec.style) };
-        if (msg.key === 'align') style.align = msg.value as typeof style.align;
-        else if (msg.key === 'fontFamily') style.fontFamily = msg.value;
+        if (msg.key === 'fontFamily') style.fontFamily = msg.value;
         else if (msg.key === 'fontScale') style.fontScale = msg.value ? Number(msg.value) : 1;
         else if (msg.key === 'textColor') style.textColor = msg.value;
         updateSection(msg.id, { style } as never);
@@ -147,7 +164,7 @@ export function PreviewFrame() {
     }
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [selectSection, duplicateSection, removeSection, setSections, updateSectionField, updateSection, updateGlobalField]);
+  }, [selectSection, duplicateSection, removeSection, setSections, updateSectionField, updateSection, updateGlobalField, updateFieldStyle]);
 
   if (!current) return null;
 

@@ -24,7 +24,7 @@ export type CanvasMessage =
   | { source: 'nl-canvas'; type: 'reorder'; id: string; beforeId: string | null }
   | { source: 'nl-canvas'; type: 'height'; height: number }
   | { source: 'nl-canvas'; type: 'edit'; id: string; path: string; value: string }
-  | { source: 'nl-canvas'; type: 'format'; id: string; key: string; value: string };
+  | { source: 'nl-canvas'; type: 'format'; id: string; key: string; value: string; path?: string };
 
 export const CANVAS_ATTR = 'data-nl-section';
 
@@ -276,10 +276,14 @@ export function canvasScript(): string {
         var sel = e.target;
         var host = editing && editing.closest('[' + ATTR + ']');
         if (!host) return;
+        // Scope the change to the specific field being edited (e.g. "title",
+        // "subtitle", "items.2") so per-element styling doesn't leak across
+        // the whole section.
+        var path = editing.getAttribute('data-nl-edit') || undefined;
         var kind = sel.getAttribute('data-fmt');
-        if (kind === 'font') post({ type: 'format', id: id(host), key: 'fontFamily', value: sel.value });
-        else if (kind === 'size') post({ type: 'format', id: id(host), key: 'fontScale', value: sel.value });
-        else if (kind === 'colour') post({ type: 'format', id: id(host), key: 'textColor', value: sel.value });
+        if (kind === 'font') post({ type: 'format', id: id(host), key: 'fontFamily', value: sel.value, path: path });
+        else if (kind === 'size') post({ type: 'format', id: id(host), key: 'fontScale', value: sel.value, path: path });
+        else if (kind === 'colour') post({ type: 'format', id: id(host), key: 'textColor', value: sel.value, path: path });
       });
     }
 

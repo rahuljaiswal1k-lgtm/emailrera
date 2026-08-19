@@ -52,6 +52,8 @@ interface NewsletterStore {
   updateSectionField: (id: string, path: string, value: string) => void;
   /** Code mode: set hand-written HTML, or null to go back to the sections. */
   setHtmlOverride: (html: string | null) => void;
+  /** Format toolbar on a specific field — per-`data-nl-edit` path style override. */
+  updateFieldStyle: (id: string, path: string, patch: Partial<import('../types/newsletter').FieldStyle>) => void;
   toggleSectionVisibility: (id: string) => void;
   selectSection: (id: string | null) => void;
   duplicateCurrentAsNew: () => void;
@@ -249,6 +251,28 @@ export const useNewsletterStore = create<NewsletterStore>((set, get) => ({
 
   setHtmlOverride: (html) => {
     set((s) => (s.current ? { current: { ...s.current, htmlOverride: html } } : {}));
+    persistCurrent(get, set);
+  },
+
+  updateFieldStyle: (id, path, patch) => {
+    set((s) => {
+      if (!s.current) return {};
+      const sections = s.current.sections.map((sec) => {
+        if (sec.id !== id) return sec;
+        const fieldStyles = { ...(sec.fieldStyles ?? {}) };
+        const existing = fieldStyles[path] ?? {};
+        const merged = { ...existing, ...patch };
+        // Drop entries that fall back to defaults so the section stays clean.
+        Object.keys(merged).forEach((k) => {
+          const v = (merged as Record<string, unknown>)[k];
+          if (v === undefined || v === null || v === '') delete (merged as Record<string, unknown>)[k];
+        });
+        if (Object.keys(merged).length === 0) delete fieldStyles[path];
+        else fieldStyles[path] = merged;
+        return { ...sec, fieldStyles };
+      });
+      return { current: { ...s.current, sections } };
+    });
     persistCurrent(get, set);
   },
 
