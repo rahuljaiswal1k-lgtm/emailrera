@@ -27,7 +27,16 @@ const INLINE_TAGS = 'b|i|u|s|strong|em|mark|br|ul|ol|li';
 
 export function rich(str: string): string {
   return esc(str ?? '')
+    // Bare open/close tags: <b>, </b>, <mark>, </li>, …
     .replace(new RegExp(`&lt;(/?(?:${INLINE_TAGS}))&gt;`, 'gi'), '<$1>')
+    // Open tags with attributes we care about — currently just <mark style="…">
+    // so a chosen highlight colour survives the round-trip. Any quotes inside
+    // the style were already escaped to &quot; by esc(); un-escape them so
+    // the browser parses the attribute.
+    .replace(
+      /&lt;(mark)\s+style=&quot;([^&"<>]*)&quot;&gt;/gi,
+      '<$1 style="$2">'
+    )
     .replace(/&lt;br\s*\/?&gt;/gi, '<br>')
     .replace(/\n/g, '<br>');
 }

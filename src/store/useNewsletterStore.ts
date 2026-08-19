@@ -23,6 +23,12 @@ interface NewsletterStore {
   images: Record<string, StoredImage>;
   globalSettings: GlobalSettings;
 
+  // undo / redo history for the currently open newsletter
+  past: Newsletter[];
+  future: Newsletter[];
+  undo: () => void;
+  redo: () => void;
+
   // ui
   view: View;
   saveStatus: 'idle' | 'saving' | 'saved' | 'error';
@@ -68,15 +74,39 @@ interface NewsletterStore {
   updateGlobalField: (path: string, value: string) => void;
 }
 
+// Undo/redo history is a plain past[] / future[] stack. Whenever the current
+// newsletter changes, the previous snapshot is pushed onto `past` and the
+// future stack is cleared — except when the change itself is an undo or
+// redo, in which case we set `suppressHistory` to keep the stacks consistent.
+let suppressHistory = false;
+let historyBaseline: Newsletter | null = null;
+const HISTORY_LIMIT = 60;
+
 function persistCurrent(get: () => NewsletterStore, set: (p: Partial<NewsletterStore>) => void) {
-  const { current, newsletters } = get();
+  const { current, newsletters, past } = get();
   if (!current) return;
   set({ saveStatus: 'saving' });
   const updated = { ...current, updatedAt: Date.now() };
   const idx = newsletters.findIndex((n) => n.id === updated.id);
   const nextList = idx >= 0 ? newsletters.map((n) => (n.id === updated.id ? updated : n)) : [...newsletters, updated];
   const ok = saveNewsletters(nextList);
-  set({ newsletters: nextList, current: updated, saveStatus: ok ? 'saved' : 'error' });
+
+  let nextPast = past;
+  let nextFuture = get().future;
+  if (!suppressHistory && historyBaseline && historyBaseline.id === updated.id) {
+    // Push the previous snapshot; drop the oldest if we're past the cap.
+    nextPast = [...past, historyBaseline].slice(-HISTORY_LIMIT);
+    nextFuture = [];
+  }
+  historyBaseline = updated;
+
+  set({
+    newsletters: nextList,
+    current: updated,
+    saveStatus: ok ? 'saved' : 'error',
+    past: nextPast,
+    future: nextFuture,
+  });
 }
 
 export const useNewsletterStore = create<NewsletterStore>((set, get) => ({
@@ -85,9 +115,38 @@ export const useNewsletterStore = create<NewsletterStore>((set, get) => ({
   selectedSectionId: null,
   images: {},
   globalSettings: DEFAULT_GLOBAL_SETTINGS,
+  past: [],
+  future: [],
   view: 'dashboard',
   saveStatus: 'idle',
   ready: false,
+
+  undo: () => {
+    const { past, current, future } = get();
+    if (past.length === 0 || !current) return;
+    const previous = past[past.length - 1];
+    const nextPast = past.slice(0, -1);
+    const nextFuture = [current, ...future].slice(0, HISTORY_LIMIT);
+    suppressHistory = true;
+    set({ current: previous, past: nextPast, future: nextFuture });
+    historyBaseline = previous;
+    // Save the reverted state but skip pushing to history.
+    persistCurrent(get, set);
+    suppressHistory = false;
+  },
+
+  redo: () => {
+    const { past, current, future } = get();
+    if (future.length === 0 || !current) return;
+    const next = future[0];
+    const nextFuture = future.slice(1);
+    const nextPast = [...past, current].slice(-HISTORY_LIMIT);
+    suppressHistory = true;
+    set({ current: next, past: nextPast, future: nextFuture });
+    historyBaseline = next;
+    persistCurrent(get, set);
+    suppressHistory = false;
+  },
 
   init: async () => {
     const newsletters = loadNewsletters();
@@ -114,7 +173,10 @@ export const useNewsletterStore = create<NewsletterStore>((set, get) => ({
       newsletters: [...s.newsletters, n],
       selectedSectionId: n.sections[0]?.id ?? null,
       view: 'editor',
+      past: [],
+      future: [],
     }));
+    historyBaseline = n;
     saveNewsletters(get().newsletters);
   },
 
@@ -124,14 +186,18 @@ export const useNewsletterStore = create<NewsletterStore>((set, get) => ({
       newsletters: [...s.newsletters, newsletter],
       selectedSectionId: newsletter.sections[0]?.id ?? null,
       view: 'editor',
+      past: [],
+      future: [],
     }));
+    historyBaseline = newsletter;
     saveNewsletters(get().newsletters);
   },
 
   openNewsletter: (id) => {
     const n = get().newsletters.find((x) => x.id === id);
     if (!n) return;
-    set({ current: n, selectedSectionId: n.sections[0]?.id ?? null, view: 'editor' });
+    set({ current: n, selectedSectionId: n.sections[0]?.id ?? null, view: 'editor', past: [], future: [] });
+    historyBaseline = n;
   },
 
   duplicateNewsletter: (id) => {

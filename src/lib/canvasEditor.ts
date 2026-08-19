@@ -248,7 +248,10 @@ export function canvasScript(): string {
         '<button data-cmd="bold" title="Bold"><b>B</b></button>' +
         '<button data-cmd="italic" title="Italic"><i>I</i></button>' +
         '<button data-cmd="underline" title="Underline"><u>U</u></button>' +
-        '<button data-cmd="mark" title="Highlight">&#9646;</button>' +
+        '<span class="sep"></span>' +
+        '<button data-cmd="mark" title="Highlight with the chosen colour">&#9646;</button>' +
+        '<input type="color" data-fmt="hilite" title="Highlight colour" value="#FFDA4B">' +
+        '<button data-cmd="unmark" title="Remove highlight">&#215;</button>' +
         '<span class="sep"></span>' +
         '<button data-cmd="insertUnorderedList" title="Bullet list">&bull; &bull;</button>' +
         '<button data-cmd="insertOrderedList" title="Numbered list">1.</button>' +
@@ -273,7 +276,11 @@ export function canvasScript(): string {
         var cmd = b.getAttribute('data-cmd');
         var align = b.getAttribute('data-align');
         if (cmd === 'mark') {
-          document.execCommand('hiliteColor', false, '#FFDA4B');
+          var picker = bar.querySelector('input[data-fmt="hilite"]');
+          var colour = (picker && picker.value) || '#FFDA4B';
+          document.execCommand('hiliteColor', false, colour);
+        } else if (cmd === 'unmark') {
+          removeHighlight(editing);
         } else if (cmd) {
           document.execCommand(cmd, false, null);
         } else if (align) {
@@ -301,6 +308,12 @@ export function canvasScript(): string {
         if (kind === 'font') post({ type: 'format', id: id(host), key: 'fontFamily', value: sel.value, path: path });
         else if (kind === 'size') post({ type: 'format', id: id(host), key: 'fontScale', value: sel.value, path: path });
         else if (kind === 'colour') post({ type: 'format', id: id(host), key: 'textColor', value: sel.value, path: path });
+        else if (kind === 'hilite') {
+          // Picking a new highlight colour applies it to the current selection
+          // right away (no need to click the highlight button afterwards).
+          document.execCommand('hiliteColor', false, sel.value);
+          commit();
+        }
       });
     }
 
@@ -314,14 +327,41 @@ export function canvasScript(): string {
     }
 
     // Normalise <span> nodes execCommand leaves behind (mainly hiliteColor)
-    // into whitelisted <mark> tags so sanitizeRich keeps them.
+    // into whitelisted <mark> tags carrying the chosen background colour so
+    // sanitizeRich keeps them and the colour survives to the export.
     function normaliseSpans(el) {
       var spans = el.querySelectorAll('span[style*="background-color"], span[style*="background"]');
       for (var i = 0; i < spans.length; i++) {
         var sp = spans[i];
+        var colour = sp.style && (sp.style.backgroundColor || '');
         var mark = document.createElement('mark');
+        if (colour) mark.setAttribute('style', 'background-color:' + colour);
         while (sp.firstChild) mark.appendChild(sp.firstChild);
         sp.parentNode.replaceChild(mark, sp);
+      }
+    }
+
+    // Remove <mark> wrappers overlapping the current selection (or the whole
+    // editing element when nothing is selected). This is what the ×-highlight
+    // toolbar button does.
+    function removeHighlight(root) {
+      var sel = window.getSelection && window.getSelection();
+      var range = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
+      var marks = root.querySelectorAll('mark');
+      for (var i = 0; i < marks.length; i++) {
+        var m = marks[i];
+        if (range && !range.collapsed) {
+          // Skip <mark>s that don't intersect the selection.
+          var mr = document.createRange();
+          mr.selectNode(m);
+          var intersects =
+            range.compareBoundaryPoints(Range.END_TO_START, mr) < 0 &&
+            range.compareBoundaryPoints(Range.START_TO_END, mr) > 0;
+          if (!intersects) continue;
+        }
+        var parent = m.parentNode;
+        while (m.firstChild) parent.insertBefore(m.firstChild, m);
+        parent.removeChild(m);
       }
     }
 

@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { ArrowLeft, Copy, Download, Upload, Check, Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, Copy, Download, Upload, Check, Loader2, Undo2, Redo2 } from 'lucide-react';
 import { useNewsletterStore } from '../../store/useNewsletterStore';
 import { exportNewsletterZip } from '../../lib/exportZip';
 import { importNewsletterZip } from '../../lib/importZip';
@@ -13,6 +13,33 @@ export function EditorTopBar() {
   const updateTitle = useNewsletterStore((s) => s.updateTitle);
   const duplicateCurrentAsNew = useNewsletterStore((s) => s.duplicateCurrentAsNew);
   const importNewsletter = useNewsletterStore((s) => s.importNewsletter);
+  const undo = useNewsletterStore((s) => s.undo);
+  const redo = useNewsletterStore((s) => s.redo);
+  const canUndo = useNewsletterStore((s) => s.past.length > 0);
+  const canRedo = useNewsletterStore((s) => s.future.length > 0);
+
+  // Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z / Cmd/Ctrl+Y for undo / redo.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      const target = e.target as HTMLElement | null;
+      const inEditable =
+        target &&
+        (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+      if (inEditable) return;
+      const key = e.key.toLowerCase();
+      if (key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if ((key === 'z' && e.shiftKey) || key === 'y') {
+        e.preventDefault();
+        redo();
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, redo]);
 
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +78,23 @@ export function EditorTopBar() {
         title="Back to dashboard"
       >
         <ArrowLeft size={17} />
+      </button>
+
+      <button
+        onClick={undo}
+        disabled={!canUndo}
+        title="Undo (Ctrl/Cmd+Z)"
+        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 disabled:text-gray-300 text-gray-500 hover:bg-gray-100 disabled:hover:bg-transparent"
+      >
+        <Undo2 size={17} />
+      </button>
+      <button
+        onClick={redo}
+        disabled={!canRedo}
+        title="Redo (Ctrl/Cmd+Shift+Z)"
+        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 disabled:text-gray-300 text-gray-500 hover:bg-gray-100 disabled:hover:bg-transparent"
+      >
+        <Redo2 size={17} />
       </button>
 
       <input

@@ -118,7 +118,11 @@ function iconBadge(iconKey: string, t: ThemeTokens = BASE_T, size: number = ICON
 }
 
 function sectionHeading(iconKey: string, heading: string, t: ThemeTokens = BASE_T, path = 'heading'): string {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="left" style="margin-bottom:${SPACE.sm}px;"><tr><td valign="middle" style="padding-right:12px;">${iconBadge(
+  // NOTE: no `align="left"` — that would float the whole table and cause
+  // whatever follows (an intro paragraph, a list …) to wrap up next to the
+  // heading, which reads as overlap in the preview. Following an inline
+  // block, add a hard clearing row so the next block starts on its own line.
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:${SPACE.sm}px;"><tr><td valign="middle" style="padding-right:12px;">${iconBadge(
     iconKey,
     t
   )}</td><td valign="middle" align="left" style="text-align:left;"><div style="font-family:${FONT};font-size:${TYPE.h4.size}px;line-height:${
