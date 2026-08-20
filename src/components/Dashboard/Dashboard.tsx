@@ -5,6 +5,7 @@ import { Modal } from '../shared/Modal';
 import { SECTION_LABELS } from '../../data/sectionDefaults';
 import { Plus, Copy, Trash2, Settings, FileText, LayoutTemplate } from 'lucide-react';
 import { BrandMark } from '../shared/BrandMark';
+import { DeveloperCredit } from '../shared/DeveloperCredit';
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
@@ -32,7 +33,10 @@ export function Dashboard() {
             <div className="flex items-center gap-3">
               <BrandMark height={36} />
               <div className="h-8 w-px bg-gray-200" />
-              <h1 className="text-lg font-bold tracking-tight">Newsletter Builder</h1>
+              <div>
+                <h1 className="text-lg font-bold tracking-tight leading-tight">Newsletter Builder</h1>
+                <DeveloperCredit variant="inline" />
+              </div>
             </div>
             <p className="text-xs text-gray-400 mt-1.5">No-code email newsletters, ready to send.</p>
           </div>
@@ -167,6 +171,8 @@ export function Dashboard() {
           </div>
         </Modal>
       )}
+
+      <DeveloperCredit />
     </div>
   );
 }

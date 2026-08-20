@@ -3,6 +3,7 @@ import { EditorTopBar } from './EditorTopBar';
 import { Sidebar } from './Sidebar/Sidebar';
 import { PreviewFrame } from './Preview/PreviewFrame';
 import { PropertiesPanel } from './Properties/PropertiesPanel';
+import { DeveloperCredit } from '../shared/DeveloperCredit';
 
 export function EditorLayout() {
   const current = useNewsletterStore((s) => s.current);
@@ -16,6 +17,7 @@ export function EditorLayout() {
         <PreviewFrame />
         <PropertiesPanel />
       </div>
+      <DeveloperCredit />
     </div>
   );
 }
