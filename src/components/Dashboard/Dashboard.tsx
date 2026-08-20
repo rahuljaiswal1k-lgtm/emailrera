@@ -33,10 +33,7 @@ export function Dashboard() {
             <div className="flex items-center gap-3">
               <BrandMark height={36} />
               <div className="h-8 w-px bg-gray-200" />
-              <div>
-                <h1 className="text-lg font-bold tracking-tight leading-tight">Newsletter Builder</h1>
-                <DeveloperCredit variant="inline" />
-              </div>
+              <h1 className="text-lg font-bold tracking-tight">Newsletter Builder</h1>
             </div>
             <p className="text-xs text-gray-400 mt-1.5">No-code email newsletters, ready to send.</p>
           </div>

@@ -34,11 +34,10 @@ export function GlobalSettingsPage() {
           </button>
           <BrandMark height={30} />
           <div className="h-7 w-px bg-gray-200" />
-          <div className="flex-1">
+          <div>
             <h1 className="text-base font-bold">Global Settings</h1>
             <p className="text-xs text-gray-400">Company details that automatically populate the header logo and footer on every newsletter.</p>
           </div>
-          <DeveloperCredit variant="inline" />
         </div>
       </header>
 
