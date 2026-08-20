@@ -392,6 +392,165 @@ export const TEMPLATES: NewsletterTemplate[] = [
       ]),
   },
 
+  {
+    key: 'qprReminder',
+    name: 'QPR Filing Reminder',
+    description: 'Deadline nudge for the Quarterly Progress Report — checklist, deadline callout and CTA.',
+    category: 'Alerts & Compliance',
+    build: () =>
+      base('QPR Filing Reminder — Deadline Approaching', '', [
+        createSection('header'),
+        withOverrides(createSection('hero') as HeroSection, {
+          title: 'Your QPR Filing Deadline Is Approaching',
+          subtitle: 'A quarterly reminder so your MahaRERA compliance stays on record.',
+          showSubtitle: true,
+          backgroundColor: '#FFDA4B',
+          badge: 'QUARTERLY REMINDER',
+        }),
+        withOverrides(createSection('paragraph'), {
+          body: 'Every registered project must file a Quarterly Progress Report (QPR) on the MahaRERA portal within 15 days of the quarter ending. Missing a filing can attract penalties and, more importantly, dents buyer confidence when they check your project profile.',
+        }),
+        withOverrides(createSection('boxGroup') as BoxGroupSection, {
+          heading: 'THIS QUARTER',
+          icon: 'warning',
+          boxes: [
+            { ...createBox('warning'), title: 'Deadline', text: 'Add the exact date here — e.g. 15 January.' },
+            { ...createBox('info'), title: 'Applies to', text: 'All projects registered with MahaRERA whose quarter falls in this window.' },
+          ],
+        }),
+        withOverrides(createSection('listBlock') as ListBlockSection, {
+          heading: 'YOUR FILING CHECKLIST',
+          icon: 'legal',
+          listStyle: 'checklist',
+          items: [
+            { id: nanoid(), title: 'Site progress photos + captions', text: 'Latest images that reflect on-ground status.' },
+            { id: nanoid(), title: 'Booking, receivables & withdrawal update', text: 'Numbers reconciled with the escrow account.' },
+            { id: nanoid(), title: 'Timeline & completion status', text: 'Any change vs. the previously declared date.' },
+            { id: nanoid(), title: 'Approvals, permissions & CC/OC', text: 'Fresh copies uploaded to the portal.' },
+          ],
+        }),
+        withOverrides(createSection('cta') as CTASection, {
+          heading: 'Need help filing on time?',
+          description: 'Our team files QPRs for 6,000+ projects — book a 20-minute call and we will handle the paperwork.',
+          buttonText: 'Book a QPR call',
+          buttonUrl: 'https://www.reraeasy.com/#contact',
+        }),
+        createSection('stats'),
+        createSection('about'),
+        createSection('footer'),
+      ]),
+  },
+
+  {
+    key: 'amendmentAlert',
+    name: 'Amendment / Rule Update',
+    description: 'Explain a MahaRERA circular or amendment: what changed, who it affects, what to do.',
+    category: 'Legal & Judgments',
+    build: () =>
+      base('MahaRERA Amendment — What You Need To Know', '', [
+        createSection('header'),
+        withOverrides(createSection('hero') as HeroSection, {
+          title: 'MahaRERA Amendment — What You Need To Know',
+          subtitle: 'The change, who it affects and the next steps.',
+          showSubtitle: true,
+          badge: 'AMENDMENT ALERT',
+        }),
+        withOverrides(createSection('textBlock') as TextBlockSection, {
+          badge: 'Circular',
+          eyebrow: 'Issued by MahaRERA',
+          heading: 'Circular reference · effective date',
+          headingSize: 'md',
+        }),
+        withOverrides(createSection('paragraph'), {
+          body: 'Summarise the amendment in one paragraph — what section of the RERA Act it modifies, and the plain-language change. Two or three sentences is ideal; use bullets below if the change has multiple parts.',
+        }),
+        withOverrides(createSection('listBlock') as ListBlockSection, {
+          heading: 'WHAT CHANGED',
+          icon: 'legal',
+          listStyle: 'numbered',
+          items: [
+            { id: nanoid(), title: 'First change', text: 'Before → after, in one line.' },
+            { id: nanoid(), title: 'Second change', text: 'Before → after, in one line.' },
+            { id: nanoid(), title: 'Third change', text: 'Before → after, in one line.' },
+          ],
+        }),
+        withOverrides(createSection('comparison'), {
+          heading: 'BEFORE VS AFTER',
+          leftTitle: 'Old rule',
+          rightTitle: 'New rule',
+        }),
+        withOverrides(createSection('boxGroup') as BoxGroupSection, {
+          heading: 'WHO THIS AFFECTS',
+          icon: 'insight',
+          boxes: [
+            { ...createBox('info'), title: 'Registered promoters', text: 'What you must do differently now.' },
+            { ...createBox('info'), title: 'Real-estate agents', text: 'Any impact on your registrations or renewals.' },
+          ],
+        }),
+        withOverrides(createSection('faq'), {
+          heading: 'QUESTIONS WE ARE HEARING',
+        }),
+        withOverrides(createSection('cta') as CTASection, {
+          heading: 'Not sure if this applies to your project?',
+          description: 'A short conversation is usually enough to know exactly what needs to change on your side.',
+          buttonText: 'Talk to a RERA expert',
+        }),
+        createSection('about'),
+        createSection('footer'),
+      ]),
+  },
+
+  {
+    key: 'buyerGuide',
+    name: 'Homebuyer Guide',
+    description: 'Consumer-facing MahaRERA explainer — clean prose, myths, checklist and contact.',
+    category: 'Education & Insights',
+    build: () =>
+      base('Buying a Home in Maharashtra — Your MahaRERA Guide', '', [
+        createSection('header'),
+        withOverrides(createSection('hero') as HeroSection, {
+          title: 'Your MahaRERA Guide to Buying a Home',
+          subtitle: 'Verify before you sign — a short read for every homebuyer.',
+          showSubtitle: true,
+          backgroundColor: '#FFDA4B',
+        }),
+        withOverrides(createSection('paragraph'), {
+          body: 'MahaRERA is Maharashtra\'s regulator for real estate. Every project of 500 sqm or above (or with 8+ apartments) must register on the portal, disclose timelines, and file quarterly updates. That means before you pay a token amount, you can look up the project yourself in a few minutes.',
+        }),
+        withOverrides(createSection('listBlock') as ListBlockSection, {
+          heading: 'BEFORE YOU BOOK — 5 THINGS TO CHECK',
+          icon: 'legal',
+          listStyle: 'checklist',
+          items: [
+            { id: nanoid(), title: 'MahaRERA registration number', text: 'Look it up on maharera.mahaonline.gov.in — the project card should open.' },
+            { id: nanoid(), title: 'Declared completion date', text: 'Filed by the promoter — this is legally binding.' },
+            { id: nanoid(), title: 'Approved plans & permissions', text: 'Copies live in the "Documents" tab of the project.' },
+            { id: nanoid(), title: 'Quarterly progress updates', text: 'A consistently updated project shows an active promoter.' },
+            { id: nanoid(), title: 'Complaint history', text: 'The portal also lists open complaints against the project.' },
+          ],
+        }),
+        createSection('mythFact'),
+        withOverrides(createSection('columns') as ColumnsSection, {
+          heading: 'WHY THIS MATTERS',
+          count: 3,
+          columnStyle: 'metric',
+          columns: [
+            { id: nanoid(), icon: '', title: '90%', text: 'Of buyers verify RERA before booking', imageId: null },
+            { id: nanoid(), icon: '', title: '15 days', text: 'Cooling-off window after allotment', imageId: null },
+            { id: nanoid(), icon: '', title: '10%', text: 'Interest promoter must pay for delay', imageId: null },
+          ],
+        }),
+        withOverrides(createSection('cta') as CTASection, {
+          heading: 'Need a second opinion on a project?',
+          description: 'We look up MahaRERA records, filings and complaint history for you — usually in under 24 hours.',
+          buttonText: 'Ask us to check',
+          buttonUrl: 'https://www.reraeasy.com/#contact',
+        }),
+        createSection('about'),
+        createSection('footer'),
+      ]),
+  },
+
   // -------------------------------------------------------------------------
   // "Sales Catalyst" — the uploaded MahaRERA compliance newsletter, rebuilt
   // as native editable sections so every part is click-to-edit on the canvas

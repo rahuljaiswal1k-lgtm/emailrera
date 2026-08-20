@@ -1,5 +1,6 @@
-import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
+// jszip and file-saver are only needed the moment the user clicks Generate
+// Newsletter. They are ~90 kB of the initial bundle otherwise, so they're
+// imported dynamically instead.
 import type { GlobalSettings, Newsletter, StoredImage } from '../types/newsletter';
 import { generateHTML, exportResolver, collectImageIds } from './htmlGenerator';
 
@@ -23,6 +24,10 @@ export async function exportNewsletterZip(
   settings: GlobalSettings,
   images: Record<string, StoredImage>
 ): Promise<void> {
+  const [{ default: JSZip }, { saveAs }] = await Promise.all([
+    import('jszip'),
+    import('file-saver'),
+  ]);
   const zip = new JSZip();
 
   // Build a stable id -> filename map (image1.jpg, image2.png, ...) — this also

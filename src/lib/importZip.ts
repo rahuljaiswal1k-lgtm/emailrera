@@ -1,4 +1,4 @@
-import JSZip from 'jszip';
+// jszip is dynamic-imported so it stays out of the initial bundle.
 import { nanoid } from './id';
 import type { Newsletter, StoredImage } from '../types/newsletter';
 
@@ -8,7 +8,10 @@ export interface ImportResult {
 }
 
 export async function importNewsletterZip(file: File): Promise<ImportResult> {
-  const buffer = await file.arrayBuffer();
+  const [{ default: JSZip }, buffer] = await Promise.all([
+    import('jszip'),
+    file.arrayBuffer(),
+  ]);
   const zip = await JSZip.loadAsync(buffer);
   const dataFile = zip.file('data.json');
   if (!dataFile) {
