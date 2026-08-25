@@ -86,6 +86,10 @@ export function canvasStyles(): string {
     [data-nl-edit] ul { list-style: disc; }
     [data-nl-edit] ol { list-style: decimal; }
     [data-nl-edit] li { margin: 2px 0; }
+    /* Links inside editable text — visible during editing, and the same
+       style ships in the exported HTML thanks to rich() adding an inline
+       colour on <a> tags. Ctrl/Cmd+click opens in a new tab. */
+    [data-nl-edit] a { color: #1A6CFF; text-decoration: underline; cursor: pointer; }
 
     #nl-fmt {
       position: fixed; z-index: 90; display: none; gap: 2px; align-items: center;
@@ -249,6 +253,9 @@ export function canvasScript(): string {
         '<button data-cmd="italic" title="Italic"><i>I</i></button>' +
         '<button data-cmd="underline" title="Underline"><u>U</u></button>' +
         '<span class="sep"></span>' +
+        '<button data-cmd="link" title="Add / edit link">&#128279;</button>' +
+        '<button data-cmd="unlink" title="Remove link">&#128683;</button>' +
+        '<span class="sep"></span>' +
         '<button data-cmd="mark" title="Highlight with the chosen colour">&#9646;</button>' +
         '<input type="color" data-fmt="hilite" title="Highlight colour" value="#FFDA4B">' +
         '<button data-cmd="unmark" title="Remove highlight">&#215;</button>' +
@@ -281,6 +288,25 @@ export function canvasScript(): string {
           document.execCommand('hiliteColor', false, colour);
         } else if (cmd === 'unmark') {
           removeHighlight(editing);
+        } else if (cmd === 'link') {
+          // Pre-fill the prompt with the existing link (if the caret sits
+          // inside one), otherwise leave it blank. Empty answer / Cancel is a
+          // no-op — nothing worse than losing your selection on a stray click.
+          var existing = getSurroundingHref();
+          var url = window.prompt('Link URL — leave blank to cancel', existing || 'https://');
+          if (url === null) return;
+          url = (url || '').trim();
+          if (!url || url === 'https://') return;
+          // No leading-slash regex here: template-literal-emitted regex
+          // backslashes were being stripped by the bundler, producing an
+          // invalid /^/+/ at runtime. Plain while-loop instead.
+          if (!/^[a-z][a-z0-9+.-]*:/i.test(url) && !url.startsWith('mailto:')) {
+            while (url.charAt(0) === '/') url = url.slice(1);
+            url = 'https://' + url;
+          }
+          document.execCommand('createLink', false, url);
+        } else if (cmd === 'unlink') {
+          document.execCommand('unlink', false, null);
         } else if (cmd) {
           document.execCommand(cmd, false, null);
         } else if (align) {
@@ -339,6 +365,19 @@ export function canvasScript(): string {
         while (sp.firstChild) mark.appendChild(sp.firstChild);
         sp.parentNode.replaceChild(mark, sp);
       }
+    }
+
+    // If the caret sits inside an <a>, return its href — so the Link prompt
+    // opens pre-filled with the current URL rather than starting blank.
+    function getSurroundingHref() {
+      var sel = window.getSelection && window.getSelection();
+      if (!sel || !sel.rangeCount) return '';
+      var node = sel.getRangeAt(0).startContainer;
+      while (node && node !== document.body) {
+        if (node.tagName === 'A' && node.getAttribute) return node.getAttribute('href') || '';
+        node = node.parentNode;
+      }
+      return '';
     }
 
     // Remove <mark> wrappers overlapping the current selection (or the whole
