@@ -150,6 +150,49 @@ export const DESIGN_PRESETS: DesignPreset[] = [
     description: 'Balanced default for most sections',
     style: { theme: 'light', variant: 'card', borderRadius: RADIUS.lg, shadow: 'none', padding: CARD_PADDING, spacingTop: 0, spacingBottom: BLOCK_GAP, borderWidth: 1 },
   },
+
+  // -------------------------------------------------------------------------
+  // Colour-forward professional presets. Each one commits to a distinct
+  // palette (navy / emerald / slate / ivory / midnight / terracotta) so the
+  // newsletter can move between "corporate", "legal", "tech-forward" or
+  // "editorial" moods block-by-block instead of every block reading yellow.
+  // -------------------------------------------------------------------------
+  {
+    key: 'corporateNavy',
+    label: 'Corporate Navy',
+    description: 'Deep navy card with a peach accent — boardroom-serious',
+    style: { theme: 'navy', variant: 'filled', borderRadius: RADIUS.lg, shadow: 'md', padding: 30, spacingTop: 0, spacingBottom: SPACE.lg, borderWidth: 0 },
+  },
+  {
+    key: 'legalEmerald',
+    label: 'Legal Emerald',
+    description: 'Deep emerald with a gold accent — compliance authority',
+    style: { theme: 'emerald', variant: 'filled', borderRadius: RADIUS.md, shadow: 'md', padding: 30, spacingTop: 0, spacingBottom: SPACE.lg, borderWidth: 0 },
+  },
+  {
+    key: 'modernSlate',
+    label: 'Modern Slate',
+    description: 'Cool slate canvas with a teal accent — clean & current',
+    style: { theme: 'slate', variant: 'card', borderRadius: RADIUS.lg, shadow: 'sm', padding: CARD_PADDING, spacingTop: 0, spacingBottom: BLOCK_GAP, borderWidth: 1 },
+  },
+  {
+    key: 'editorialIvory',
+    label: 'Editorial Ivory',
+    description: 'Warm ivory with a deep red accent — long-form feel',
+    style: { theme: 'ivory', variant: 'card', borderRadius: RADIUS.md, shadow: 'none', padding: 30, spacingTop: SPACE.xs, spacingBottom: SPACE.xl, borderWidth: 1 },
+  },
+  {
+    key: 'techMidnight',
+    label: 'Tech Midnight',
+    description: 'Near-black with an electric-blue accent — tech-forward',
+    style: { theme: 'midnight', variant: 'filled', borderRadius: RADIUS.lg, shadow: 'lg', padding: 30, spacingTop: 0, spacingBottom: SPACE.lg, borderWidth: 0 },
+  },
+  {
+    key: 'warmTerracotta',
+    label: 'Warm Terracotta',
+    description: 'Rust panel with a cream accent — hospitality warmth',
+    style: { theme: 'terracotta', variant: 'filled', borderRadius: RADIUS.xl, shadow: 'md', padding: 32, spacingTop: 0, spacingBottom: SPACE.lg, borderWidth: 0 },
+  },
 ];
 
 export function getPreset(key: string): DesignPreset | undefined {

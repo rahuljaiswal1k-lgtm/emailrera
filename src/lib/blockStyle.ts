@@ -11,7 +11,17 @@
 // that renders those sections exactly as they rendered before.
 // ============================================================================
 
-export type BlockTheme = 'light' | 'gray' | 'dark' | 'yellow';
+export type BlockTheme =
+  | 'light'
+  | 'gray'
+  | 'dark'
+  | 'yellow'
+  | 'navy'
+  | 'emerald'
+  | 'slate'
+  | 'ivory'
+  | 'midnight'
+  | 'terracotta';
 export type BlockVariant = 'plain' | 'card' | 'outline' | 'filled' | 'elevated' | 'minimal';
 export type ShadowSize = 'none' | 'sm' | 'md' | 'lg';
 export type BlockAlign = 'left' | 'center' | 'right';
@@ -184,6 +194,73 @@ export const THEME_TOKENS: Record<BlockTheme, ThemeTokens> = {
     badgeBg: '#1D1F1F', badgeText: '#FFFFFF',
     boxBg: '#FFF2C2', boxBorder: '#E9C43C', boxText: '#3A3520',
     buttonBg: '#1D1F1F', buttonText: '#FFFFFF', buttonBorder: '#1D1F1F', cardBg: '#FFF2C2',
+  },
+  // ------- new professional palettes -------
+  navy: {
+    // Deep corporate navy with a warm peach accent.
+    bg: '#0F1E3D', surface: '#182D57', surfaceAlt: '#122447',
+    heading: '#FFFFFF', text: '#D4DAE7', muted: '#8A94AA',
+    border: '#26386A', divider: '#1E2E5C',
+    accent: '#FF9A6C', accentText: '#0F1E3D',
+    iconBg: '#FF9A6C', iconFg: '#0F1E3D', iconTileBg: '#182D57', iconTileBorder: '#26386A',
+    badgeBg: '#FF9A6C', badgeText: '#0F1E3D',
+    boxBg: '#182D57', boxBorder: '#26386A', boxText: '#D4DAE7',
+    buttonBg: '#FF9A6C', buttonText: '#0F1E3D', buttonBorder: '#FF9A6C', cardBg: '#182D57',
+  },
+  emerald: {
+    // Deep emerald green with a soft gold accent — legal/compliance authority.
+    bg: '#0B3D2E', surface: '#155040', surfaceAlt: '#0F4638',
+    heading: '#FFFFFF', text: '#CFDCD5', muted: '#8FA69C',
+    border: '#1E5F4D', divider: '#164739',
+    accent: '#D4A85A', accentText: '#0B3D2E',
+    iconBg: '#D4A85A', iconFg: '#0B3D2E', iconTileBg: '#155040', iconTileBorder: '#1E5F4D',
+    badgeBg: '#D4A85A', badgeText: '#0B3D2E',
+    boxBg: '#155040', boxBorder: '#1E5F4D', boxText: '#CFDCD5',
+    buttonBg: '#D4A85A', buttonText: '#0B3D2E', buttonBorder: '#D4A85A', cardBg: '#155040',
+  },
+  slate: {
+    // Cool slate gray with a teal accent — modern minimal.
+    bg: '#F1F4F8', surface: '#FFFFFF', surfaceAlt: '#E7EBF1',
+    heading: '#1E2A3A', text: '#3D4A5F', muted: '#7A8699',
+    border: '#D5DBE4', divider: '#DEE3EB',
+    accent: '#0F9E9A', accentText: '#FFFFFF',
+    iconBg: '#0F9E9A', iconFg: '#FFFFFF', iconTileBg: '#E0F4F3', iconTileBorder: '#B7DFDD',
+    badgeBg: '#1E2A3A', badgeText: '#FFFFFF',
+    boxBg: '#FFFFFF', boxBorder: '#D5DBE4', boxText: '#3D4A5F',
+    buttonBg: '#0F9E9A', buttonText: '#FFFFFF', buttonBorder: '#0F9E9A', cardBg: '#FFFFFF',
+  },
+  ivory: {
+    // Warm off-white with a deep red accent — editorial warmth.
+    bg: '#FAF5EB', surface: '#FFFFFF', surfaceAlt: '#F1E9D5',
+    heading: '#26170F', text: '#4C3A24', muted: '#8A755A',
+    border: '#E4D6B7', divider: '#EEE1C4',
+    accent: '#8C2E2B', accentText: '#FFFFFF',
+    iconBg: '#8C2E2B', iconFg: '#FAF5EB', iconTileBg: '#F5E3E1', iconTileBorder: '#D9AAA7',
+    badgeBg: '#8C2E2B', badgeText: '#FFFFFF',
+    boxBg: '#FFFFFF', boxBorder: '#E4D6B7', boxText: '#4C3A24',
+    buttonBg: '#8C2E2B', buttonText: '#FFFFFF', buttonBorder: '#8C2E2B', cardBg: '#FFFFFF',
+  },
+  midnight: {
+    // Very dark blue-black with an electric-blue accent — tech-forward.
+    bg: '#0A0F1C', surface: '#141C2C', surfaceAlt: '#0F1524',
+    heading: '#FFFFFF', text: '#C7D0DE', muted: '#7A8598',
+    border: '#22304A', divider: '#1A2338',
+    accent: '#4CC2FF', accentText: '#0A0F1C',
+    iconBg: '#4CC2FF', iconFg: '#0A0F1C', iconTileBg: '#141C2C', iconTileBorder: '#22304A',
+    badgeBg: '#4CC2FF', badgeText: '#0A0F1C',
+    boxBg: '#141C2C', boxBorder: '#22304A', boxText: '#C7D0DE',
+    buttonBg: '#4CC2FF', buttonText: '#0A0F1C', buttonBorder: '#4CC2FF', cardBg: '#141C2C',
+  },
+  terracotta: {
+    // Warm rust with a cream accent — editorial and inviting.
+    bg: '#C25A3B', surface: '#B04F32', surfaceAlt: '#A94B2F',
+    heading: '#FFF9F0', text: '#FFE8D6', muted: '#F5C9AC',
+    border: '#8A3D25', divider: '#994528',
+    accent: '#FFF1D6', accentText: '#7A2E19',
+    iconBg: '#FFF1D6', iconFg: '#7A2E19', iconTileBg: '#B04F32', iconTileBorder: '#8A3D25',
+    badgeBg: '#FFF1D6', badgeText: '#7A2E19',
+    boxBg: '#B04F32', boxBorder: '#8A3D25', boxText: '#FFE8D6',
+    buttonBg: '#FFF1D6', buttonText: '#7A2E19', buttonBorder: '#FFF1D6', cardBg: '#B04F32',
   },
 };
 

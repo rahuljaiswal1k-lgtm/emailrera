@@ -11,6 +11,12 @@ const THEMES: { value: BlockTheme; label: string }[] = [
   { value: 'gray', label: 'Light Gray' },
   { value: 'dark', label: 'Dark' },
   { value: 'yellow', label: 'Brand Yellow' },
+  { value: 'navy', label: 'Corporate Navy' },
+  { value: 'emerald', label: 'Legal Emerald' },
+  { value: 'slate', label: 'Modern Slate' },
+  { value: 'ivory', label: 'Editorial Ivory' },
+  { value: 'midnight', label: 'Tech Midnight' },
+  { value: 'terracotta', label: 'Warm Terracotta' },
 ];
 
 const VARIANTS: { value: BlockVariant; label: string }[] = [
