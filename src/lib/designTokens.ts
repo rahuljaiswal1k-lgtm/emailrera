@@ -111,8 +111,8 @@ export const DESIGN_PRESETS: DesignPreset[] = [
   {
     key: 'alert',
     label: 'Compliance Alert',
-    description: 'Yellow band, bold and urgent',
-    style: { theme: 'yellow', variant: 'filled', borderRadius: RADIUS.md, shadow: 'none', padding: 24, spacingTop: 0, spacingBottom: BLOCK_GAP, borderWidth: 0 },
+    description: 'Full-width yellow band, bold and urgent',
+    style: { theme: 'yellow', variant: 'filled', borderRadius: 0, shadow: 'none', padding: 28, spacingTop: 0, spacingBottom: BLOCK_GAP, borderWidth: 0, fullBleed: true },
   },
   {
     key: 'editorial',

@@ -114,7 +114,14 @@ function wrapperPaintsCard(style: { variant: string; padding: number }): boolean
 function iconBadge(iconKey: string, t: ThemeTokens = BASE_T, size: number = ICON_SIZE.md): string {
   const icon = getIcon(iconKey);
   const inner = Math.round(size * 0.55);
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="background:${t.iconTileBg};border:1px solid ${t.iconTileBorder};border-radius:${RADIUS.sm}px;"><tr><td width="${size}" height="${size}" align="center" valign="middle" style="width:${size}px;height:${size}px;text-align:center;"><svg width="${inner}" height="${inner}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;">${icon.svg}</svg></td></tr></table>`;
+  // Icons ship with hardcoded yellow (#FFDA4B) and dark (#1D1F1F) colours —
+  // fine on the default yellow tile, invisible on ivory/navy/emerald etc.
+  // Recolour at render time so every theme paints its icons in its own
+  // iconFg/iconBg pair: strong contrast on any tile.
+  const svgBody = icon.svg
+    .replace(/#FFDA4B/gi, t.iconFg)
+    .replace(/#1D1F1F/gi, t.iconBg);
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="background:${t.iconTileBg};border:1px solid ${t.iconTileBorder};border-radius:${RADIUS.sm}px;"><tr><td width="${size}" height="${size}" align="center" valign="middle" style="width:${size}px;height:${size}px;text-align:center;"><svg width="${inner}" height="${inner}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;">${svgBody}</svg></td></tr></table>`;
 }
 
 function sectionHeading(iconKey: string, heading: string, t: ThemeTokens = BASE_T, path = 'heading'): string {
@@ -596,11 +603,14 @@ function renderTextBlock(s: TextBlockSection): string {
   const style = resolveStyle(s.style);
   const t = computeTokens(style);
   const h = HEADING_SIZES[s.headingSize] ?? HEADING_SIZES.md;
-
+  // Every text element inherits the block's alignment from the wrapping td,
+  // so heading + subheading + body stay aligned together — the previous
+  // hardcoded `text-align:left` on the body caused a centred heading to
+  // sit above a left-aligned paragraph, which the user reported as a bug.
   const heading = s.heading
     ? `<div${ed('heading')} style="font-family:${FONT};font-size:${h.size}px;line-height:${h.lineHeight}px;font-weight:${
         s.headingWeight === 'bold' ? 700 : 400
-      };color:${t.text};">${rich(s.heading)}</div>`
+      };color:${t.heading};">${rich(s.heading)}</div>`
     : '';
   const sub = s.subheading
     ? `<p${ed('subheading')} style="margin:8px 0 0;font-family:${FONT};font-size:14px;line-height:22px;color:${t.muted};">${rich(
@@ -608,7 +618,7 @@ function renderTextBlock(s: TextBlockSection): string {
       )}</p>`
     : '';
   const body = s.body
-    ? `<p${ed('body')} style="margin:14px 0 0;font-family:${FONT};font-size:15px;line-height:26px;color:${t.text};text-align:left;">${rich(
+    ? `<p${ed('body')} style="margin:14px 0 0;font-family:${FONT};font-size:15px;line-height:26px;color:${t.text};">${rich(
         s.body
       )}</p>`
     : '';
