@@ -282,12 +282,27 @@ function renderContentBody(s: ContentSection, t: ThemeTokens): string {
 
   if (s.bodyType === 'paragraph') return para(s.paragraph);
 
+  // Inline SVG markers for the two extra body types the user asked for.
+  // Same SVGs as the ListBlock — precisely centred, theme-neutral. Rendered
+  // in the block's heading colour so they stay visible on any theme.
+  const arrowSvg = (colour: string) =>
+    `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" style="display:block;"><path d="M4 12h14M12 5l7 7-7 7" fill="none" stroke="${colour}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const checkSvg = (colour: string) =>
+    `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" style="display:block;"><path d="M5 12l5 5 9-11" fill="none" stroke="${colour}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
   const rows = s.items
     .map((item, i) => {
-      const marker = s.bodyType === 'numbered' ? `${i + 1}.` : '&bull;';
-      return `<tr><td valign="top" width="22" style="font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:28px;color:${t.heading};">${marker}</td><td style="font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:28px;color:${t.text};text-align:left;padding-bottom:${SPACE.xs}px;"${ed(`items.${i}`)}>${rich(
-        item
-      )}</td></tr>`;
+      let markerCell: string;
+      if (s.bodyType === 'numbered') {
+        markerCell = `<td valign="top" width="22" style="font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:28px;color:${t.heading};">${i + 1}.</td>`;
+      } else if (s.bodyType === 'arrows') {
+        markerCell = `<td valign="top" width="22" style="padding-top:6px;">${arrowSvg(t.heading)}</td>`;
+      } else if (s.bodyType === 'checks') {
+        markerCell = `<td valign="top" width="22" style="padding-top:6px;">${checkSvg('#2E9E4E')}</td>`;
+      } else {
+        markerCell = `<td valign="top" width="22" style="font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:28px;color:${t.heading};">&bull;</td>`;
+      }
+      return `<tr>${markerCell}<td style="font-family:${FONT};font-size:${TYPE.bodyLg.size}px;line-height:28px;color:${t.text};text-align:left;padding-bottom:${SPACE.xs}px;"${ed(`items.${i}`)}>${rich(item)}</td></tr>`;
     })
     .join('');
   const list = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:${SPACE.md}px;">${rows}</table>`;

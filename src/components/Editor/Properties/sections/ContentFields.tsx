@@ -27,8 +27,10 @@ export function ContentFields({ section }: { section: ContentSection }) {
           onChange={(bodyType) => set({ bodyType })}
           options={[
             { value: 'paragraph', label: 'Paragraph' },
-            { value: 'bullets', label: 'Bullet Points' },
-            { value: 'numbered', label: 'Numbered List' },
+            { value: 'bullets', label: 'Bullet Points  ( • )' },
+            { value: 'numbered', label: 'Numbered List  (1.)' },
+            { value: 'arrows', label: 'Arrows  ( → )' },
+            { value: 'checks', label: 'Checks  ( ✓ )' },
             { value: 'mixed', label: 'Mixed (Paragraph + List)' },
           ]}
         />
@@ -40,8 +42,18 @@ export function ContentFields({ section }: { section: ContentSection }) {
         </FieldGroup>
       )}
 
-      {(section.bodyType === 'bullets' || section.bodyType === 'numbered' || section.bodyType === 'mixed') && (
-        <FieldGroup label={section.bodyType === 'numbered' ? 'Numbered Items' : 'Bullet Points'}>
+      {section.bodyType !== 'paragraph' && (
+        <FieldGroup
+          label={
+            section.bodyType === 'numbered'
+              ? 'Numbered Items'
+              : section.bodyType === 'arrows'
+              ? 'Arrow Items'
+              : section.bodyType === 'checks'
+              ? 'Checklist Items'
+              : 'Bullet Points'
+          }
+        >
           <ListEditorField items={section.items} onChange={(items) => set({ items })} itemLabel="Point" multiline />
         </FieldGroup>
       )}

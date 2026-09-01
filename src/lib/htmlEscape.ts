@@ -26,7 +26,12 @@ export function nl2br(str: string): string {
 const INLINE_TAGS = 'b|i|u|s|strong|em|mark|br|ul|ol|li|a';
 
 export function rich(str: string): string {
-  const rendered = esc(str ?? '')
+  // Older stored values sometimes contain double-encoded entities (e.g.
+  // `&amp;` where the user meant an ampersand) — a legacy of the pre-fix
+  // sanitiser. Collapse those back so the render doesn't compound the
+  // encoding into `&amp;amp;` = visible `&amp;` in the output.
+  const cleaned = collapseDoubleEncoded(str ?? '');
+  const rendered = esc(cleaned)
     // Bare open/close tags: <b>, </b>, <mark>, </li>, </a>, …
     .replace(new RegExp(`&lt;(/?(?:${INLINE_TAGS}))&gt;`, 'gi'), '<$1>')
     // Open tags with attributes we care about — currently <mark style="…">
@@ -124,6 +129,23 @@ function decodeEntities(s: string): string {
     .replace(/&#(\d+);/g, (_m, d: string) => String.fromCodePoint(Number(d)))
     .replace(/&#x([0-9a-fA-F]+);/g, (_m, h: string) => String.fromCodePoint(parseInt(h, 16)))
     // & LAST so we don't re-decode entities we just produced.
+    .replace(/&amp;/g, '&');
+}
+
+/** Undo one level of HTML-entity encoding for stored text. Runs before
+ *  rich()'s esc() so that a stored value like "A &amp; B" — which our
+ *  older sanitiser produced when the user typed `&` inside a
+ *  contenteditable — renders as "A & B" instead of "A &amp; B". */
+function collapseDoubleEncoded(s: string): string {
+  if (!s) return s;
+  return s
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#160;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
     .replace(/&amp;/g, '&');
 }
 

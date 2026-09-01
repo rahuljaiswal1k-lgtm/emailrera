@@ -174,7 +174,7 @@ export interface FooterSection extends BaseSection {
 }
 
 /** Section Type 2 — Standard Content Section */
-export type BodyType = 'paragraph' | 'bullets' | 'numbered' | 'mixed';
+export type BodyType = 'paragraph' | 'bullets' | 'numbered' | 'mixed' | 'arrows' | 'checks';
 
 export interface ContentSection extends BaseSection {
   type: 'content';
