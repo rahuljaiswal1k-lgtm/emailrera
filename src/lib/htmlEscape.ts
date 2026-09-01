@@ -79,7 +79,7 @@ export function autolink(html: string): string {
  * or leaving a trailing space in a field expects that to be kept.
  */
 export function sanitizeRich(html: string): string {
-  return (html ?? '')
+  const stripped = (html ?? '')
     // Highlight spans from execCommand('hiliteColor').
     .replace(
       /<span\b[^>]*background-color\s*:[^>]*>([\s\S]*?)<\/span>/gi,
@@ -102,6 +102,29 @@ export function sanitizeRich(html: string): string {
     .replace(/<(?:div|p)\b[^>]*>/gi, '')
     .replace(/<(?!\/?(?:b|i|u|s|strong|em|mark|br|ul|ol|li|a)\b)[^>]*>/gi, '')
     .replace(/(<br>\s*){3,}/gi, '<br><br>');
+
+  // Decode the entities that .innerHTML of a contenteditable node emits
+  // (&nbsp; for U+00A0, &gt; when the user types `>`, etc.). We store text
+  // as raw characters and let rich() re-escape at render time. Without this
+  // step you'd see literal "&nbsp;" / "&gt;" in the newsletter after every
+  // typed edit — the double-encoding bug the user reported.
+  return decodeEntities(stripped);
+}
+
+function decodeEntities(s: string): string {
+  if (!s) return s;
+  return s
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#160;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_m, d: string) => String.fromCodePoint(Number(d)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_m, h: string) => String.fromCodePoint(parseInt(h, 16)))
+    // & LAST so we don't re-decode entities we just produced.
+    .replace(/&amp;/g, '&');
 }
 
 /** Small helper: escape only the characters that are unsafe in an HTML

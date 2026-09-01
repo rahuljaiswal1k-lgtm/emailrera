@@ -7,6 +7,7 @@ import { RepeatableList } from '../shared/RepeatableList';
 
 const STYLES: { value: ListStyle; label: string }[] = [
   { value: 'checklist', label: 'Checklist (green ticks)' },
+  { value: 'arrows', label: 'Arrows (thick →)' },
   { value: 'numbered', label: 'Numbered List' },
   { value: 'steps', label: 'Numbered Steps' },
   { value: 'timeline', label: 'Timeline' },

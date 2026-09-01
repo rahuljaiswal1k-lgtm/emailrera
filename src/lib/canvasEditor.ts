@@ -455,6 +455,11 @@ export function canvasScript(): string {
       sections().forEach(function (s) {
         s.classList.toggle('nl-selected', !!sel && id(s) === sel);
       });
+      // Selection cleared from the outer app (user clicked on the grey
+      // canvas around the iframe) — also drop any in-progress inline edit
+      // and hide the floating toolbar. Without this the toolbar would
+      // linger after clicking outside.
+      if (!sel) stopEditing();
     }
     window.addEventListener('message', function (e) {
       var m = e.data;

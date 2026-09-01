@@ -650,17 +650,32 @@ function renderListBlock(s: ListBlockSection): string {
         : '';
       const body = title + text;
 
+      // Inline-SVG markers keep the tick / arrow / cross perfectly centred
+      // regardless of the reader's system font — the previous unicode
+      // characters drifted off-centre on some fonts, and there's no line-
+      // height trick that fixes that reliably.
+      const checkSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" style="display:block;"><path d="M5 12l5 5 9-11" fill="none" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      const arrowSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" style="display:block;"><path d="M4 12h14M12 5l7 7-7 7" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      const starSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" style="display:block;"><path d="M12 3l2.6 5.7 6.4.7-4.7 4.4 1.3 6.2L12 17l-5.6 3 1.3-6.2L3 9.4l6.4-.7z" fill="#1D1F1F"/></svg>`;
+      const plusSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" style="display:block;"><path d="M12 5v14M5 12h14" fill="none" stroke="#1D1F1F" stroke-width="3" stroke-linecap="round"/></svg>`;
+
+      const iconTile = (bg: string, svg: string, shape = '50%') =>
+        `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td align="center" valign="middle" width="22" height="22" style="width:22px;height:22px;background:${bg};border-radius:${shape};line-height:0;font-size:0;">${svg}</td></tr></table>`;
+
       switch (s.listStyle) {
         case 'checklist':
-          return `<tr><td valign="top" width="34" style="padding:10px 0 0;"><div style="width:22px;height:22px;border-radius:50%;background:#2E9E4E;text-align:center;line-height:22px;"><span style="font-family:${FONT};font-size:12px;font-weight:bold;color:#fff;">&#10003;</span></div></td><td style="padding:10px 0 0;">${body}</td></tr>`;
+          return `<tr><td valign="top" width="34" style="padding:10px 0 0;">${iconTile('#2E9E4E', checkSvg)}</td><td style="padding:10px 0 0;">${body}</td></tr>`;
+
+        case 'arrows':
+          return `<tr><td valign="top" width="34" style="padding:10px 0 0;">${iconTile(t.accent, arrowSvg)}</td><td style="padding:10px 0 0;">${body}</td></tr>`;
 
         case 'numbered':
         case 'steps':
-          return `<tr><td valign="top" width="42" style="padding:12px 0 0;"><div style="width:30px;height:30px;border-radius:50%;background:${
+          return `<tr><td valign="top" width="42" style="padding:12px 0 0;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td align="center" valign="middle" width="30" height="30" style="width:30px;height:30px;background:${
             t.accent
-          };text-align:center;line-height:30px;"><span style="font-family:${FONT};font-size:14px;font-weight:bold;color:${
+          };border-radius:50%;font-family:${FONT};font-size:14px;font-weight:bold;color:${
             isDark(t.accent) ? '#FFFFFF' : '#1D1F1F'
-          };">${i + 1}</span></div></td><td style="padding:12px 0 0;">${body}</td></tr>`;
+          };line-height:30px;">${i + 1}</td></tr></table></td><td style="padding:12px 0 0;">${body}</td></tr>`;
 
         case 'timeline': {
           const isLast = i === s.items.length - 1;
@@ -671,10 +686,10 @@ function renderListBlock(s: ListBlockSection): string {
         }
 
         case 'takeaways':
-          return `<tr><td valign="top" width="34" style="padding:10px 0 0;"><div style="width:22px;height:22px;border-radius:6px;background:${t.accent};text-align:center;line-height:22px;"><span style="font-family:${FONT};font-size:12px;font-weight:bold;color:#1D1F1F;">&#9733;</span></div></td><td style="padding:10px 0 0;">${body}</td></tr>`;
+          return `<tr><td valign="top" width="34" style="padding:10px 0 0;">${iconTile(t.accent, starSvg, '6px')}</td><td style="padding:10px 0 0;">${body}</td></tr>`;
 
         case 'features':
-          return `<tr><td valign="top" width="34" style="padding:10px 0 0;"><div style="width:22px;height:22px;border-radius:50%;background:${t.accent};text-align:center;line-height:22px;"><span style="font-family:${FONT};font-size:13px;font-weight:bold;color:#1D1F1F;">&#43;</span></div></td><td style="padding:10px 0 0;">${body}</td></tr>`;
+          return `<tr><td valign="top" width="34" style="padding:10px 0 0;">${iconTile(t.accent, plusSvg)}</td><td style="padding:10px 0 0;">${body}</td></tr>`;
 
         default:
           return `<tr><td valign="top" width="22" style="padding:8px 0 0;font-family:${FONT};font-size:15px;line-height:24px;color:${t.text};">&bull;</td><td style="padding:8px 0 0;">${body}</td></tr>`;

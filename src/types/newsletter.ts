@@ -316,7 +316,7 @@ export interface ListItem {
   text: string;
 }
 
-export type ListStyle = 'checklist' | 'numbered' | 'bullets' | 'timeline' | 'steps' | 'takeaways' | 'features';
+export type ListStyle = 'checklist' | 'numbered' | 'bullets' | 'timeline' | 'steps' | 'takeaways' | 'features' | 'arrows';
 
 /** Checklist / Timeline / Numbered Steps / Key Takeaways / Feature List. */
 export interface ListBlockSection extends BaseSection {

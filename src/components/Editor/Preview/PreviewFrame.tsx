@@ -215,7 +215,16 @@ export function PreviewFrame() {
       {mode === 'code' ? (
         <CodeView />
       ) : (
-      <div className="flex-1 overflow-y-auto thin-scroll py-8 px-4">
+      <div
+        className="flex-1 overflow-y-auto thin-scroll py-8 px-4"
+        onMouseDown={(e) => {
+          // Click on the grey canvas surrounding the iframe (not the iframe
+          // itself, and not the "Custom HTML" banner or its Revert button)
+          // deselects the current section. Uses mousedown so it fires before
+          // any inner click handler starts its own selection.
+          if (e.target === e.currentTarget) selectSection(null);
+        }}
+      >
         {current.htmlOverride && (
           <div className="mx-auto max-w-3xl mb-3 flex items-start gap-2 px-4 py-2.5 rounded-lg bg-amber-500/15 border border-amber-500/30">
             <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
