@@ -15,7 +15,7 @@ export function esc(str: string): string {
 }
 
 export function nl2br(str: string): string {
-  return autolink(esc(str).replace(/\n/g, '<br>'));
+  return autolink(esc(collapseDoubleEncoded(str)).replace(/\n/g, '<br>'));
 }
 
 /**
@@ -132,21 +132,32 @@ function decodeEntities(s: string): string {
     .replace(/&amp;/g, '&');
 }
 
-/** Undo one level of HTML-entity encoding for stored text. Runs before
- *  rich()'s esc() so that a stored value like "A &amp; B" — which our
- *  older sanitiser produced when the user typed `&` inside a
- *  contenteditable — renders as "A & B" instead of "A &amp; B". */
+/** Undo *every* level of HTML-entity encoding for stored text. Runs before
+ *  rich()'s esc() so that a stored value like "A &amp; B" — or the
+ *  triple-encoded "A &amp;amp;amp; B" the old sanitiser could produce after
+ *  several edit cycles — renders as "A & B" instead of a literal string
+ *  like "A &amp; B" in the newsletter. Loops until the input stops
+ *  changing (bounded at 5 passes so a legit "&amp;amp;" that a user
+ *  genuinely wanted to type doesn't spin forever). */
 function collapseDoubleEncoded(s: string): string {
   if (!s) return s;
-  return s
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&#160;/g, ' ')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, '&');
+  let prev: string;
+  let out = s;
+  for (let i = 0; i < 5; i++) {
+    prev = out;
+    out = prev
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&#160;/g, ' ')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&apos;/g, "'")
+      // &amp; last so we don't re-decode entities we just produced above.
+      .replace(/&amp;/g, '&');
+    if (out === prev) break;
+  }
+  return out;
 }
 
 /** Small helper: escape only the characters that are unsafe in an HTML

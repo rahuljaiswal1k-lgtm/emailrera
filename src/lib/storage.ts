@@ -25,10 +25,15 @@ export function loadNewsletters(): Newsletter[] {
 /**
  * Forward-migrate a stored newsletter.
  *
- * The page footer used to be hardcoded into the generated HTML, so older
- * newsletters have no `footer` section and their footer could not be selected
- * or edited. Appending one on load makes it a real, editable block — the
- * built-in fallback then stops rendering, so nothing is duplicated.
+ * 1. Older newsletters have no header / footer section (they used to be
+ *    hardcoded); add them so they're editable blocks.
+ * 2. An older version of the sanitiser stored some canvas-typed text
+ *    already HTML-entity-encoded (`&amp;`, `&nbsp;`, …). Over multiple
+ *    edit cycles the encoding could compound (`&amp;amp;`, `&amp;amp;amp;`)
+ *    and eventually render as visible entity text in the newsletter.
+ *    On load we walk every string in the newsletter and decode those
+ *    entities *once and for all* so the stored data becomes clean — no
+ *    matter how many layers of encoding piled up.
  */
 export function migrateNewsletter(n: Newsletter): Newsletter {
   let sections = n.sections;
@@ -38,7 +43,51 @@ export function migrateNewsletter(n: Newsletter): Newsletter {
   if (!sections.some((s) => s.type === 'footer')) {
     sections = [...sections, createSection('footer')];
   }
-  return sections === n.sections ? n : { ...n, sections };
+  const cleaned = { ...n, sections: sections.map(decodeStoredStrings) };
+  if (n.title) cleaned.title = collapseEntities(n.title);
+  if (n.subtitle) cleaned.subtitle = collapseEntities(n.subtitle);
+  return cleaned;
+}
+
+/** Recursively walk a section's own string fields and decode piled-up
+ *  HTML entities. Non-string values (numbers, booleans, image ids,
+ *  arrays of items) pass through unchanged. */
+function decodeStoredStrings<T>(node: T): T {
+  if (node == null) return node;
+  if (typeof node === 'string') return collapseEntities(node) as unknown as T;
+  if (Array.isArray(node)) return node.map(decodeStoredStrings) as unknown as T;
+  if (typeof node === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+      // Never touch the htmlOverride blob — it's real HTML that must keep
+      // its entities intact.
+      out[k] = k === 'htmlOverride' ? v : decodeStoredStrings(v);
+    }
+    return out as T;
+  }
+  return node;
+}
+
+/** Same collapse loop as rich() uses at render time — kept here so the
+ *  migration and the renderer agree on what counts as "already decoded". */
+function collapseEntities(s: string): string {
+  if (!s || s.indexOf('&') === -1) return s;
+  let prev: string;
+  let out = s;
+  for (let i = 0; i < 5; i++) {
+    prev = out;
+    out = prev
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&#160;/g, ' ')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&apos;/g, "'")
+      .replace(/&amp;/g, '&');
+    if (out === prev) break;
+  }
+  return out;
 }
 
 /**
